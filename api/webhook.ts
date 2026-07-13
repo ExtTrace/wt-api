@@ -102,7 +102,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .upsert({ chat_id: chatId, sync_id: syncId }, { onConflict: 'chat_id' });
 
       if (error) {
-        await sendMessage(chatId, '❌ Gagal menyimpan link. Coba lagi nanti.');
+        console.error('Supabase upsert error:', JSON.stringify(error));
+        await sendMessage(chatId, `❌ Gagal menyimpan link.\n\n<code>${error.message}</code>\n\nPastikan tabel <b>chat_links</b> sudah dibuat di Supabase.`);
         return res.status(200).send('OK');
       }
 
