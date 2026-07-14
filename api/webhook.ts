@@ -12,6 +12,8 @@ interface MediaItem {
   title: string;
   episode?: string | null;
   season?: string | null;
+  nextEpisode?: string | null;
+  hasNewEpisode?: boolean;
   isArchived?: boolean;
   lastWatchedAt: string;
 }
