@@ -11,6 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const commands = [
     { command: 'start', description: 'Mulai dan lihat panduan penggunaan' },
     { command: 'list', description: 'Lihat daftar anime yang sedang ditonton' },
+    { command: 'new', description: 'Anime dengan episode baru yang belum ditonton' },
     { command: 'schedule', description: 'Cek jadwal episode berikutnya dari AniList' },
     { command: 'link', description: 'Hubungkan bot ke ekstensi (butuh Sync ID)' },
   ];

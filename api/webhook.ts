@@ -62,6 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `Gunakan perintah berikut:\n` +
         `• <code>/link &lt;sync-id&gt;</code> — Hubungkan bot ke ekstensi Anda\n` +
         `• <code>/list</code> — Lihat daftar tontonan Anda\n` +
+        `• <code>/new</code> — Episode baru yang belum ditonton\n` +
         `• <code>/schedule</code> — Cek jadwal episode berikutnya\n\n` +
         `Untuk menghubungkan, buka menu <b>Options → Data Management</b> di ekstensi, ` +
         `salin Sync ID Anda, lalu kirim:\n<code>/link awt-sync-xxxxxxxx</code>`
@@ -276,8 +277,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).send('OK');
     }
 
+    // ─── /new ──────────────────────────────────────────────────────────
+    if (text.startsWith('/new')) {
+      if (!supabase) {
+        await sendMessage(chatId, '❌ Database tidak terkonfigurasi.');
+        return res.status(200).send('OK');
+      }
+
+      const syncId = await getSyncIdForChat(chatId);
+      if (!syncId) {
+        await sendMessage(chatId, `❌ Akun belum dihubungkan.\n\nKirim: <code>/link &lt;sync-id&gt;</code>`);
+        return res.status(200).send('OK');
+      }
+
+      const { data: storageData } = await supabase
+        .from('sync_storage')
+        .select('data')
+        .eq('id', syncId)
+        .single();
+
+      const storage = storageData?.data as MediaStorage | null;
+      const unwatched = (storage?.items ?? []).filter(
+        (i) => !i.isArchived && i.hasNewEpisode === true
+      );
+
+      if (unwatched.length === 0) {
+        await sendMessage(chatId, '✅ Tidak ada anime dengan episode baru yang belum ditonton. Semua sudah up-to-date!');
+        return res.status(200).send('OK');
+      }
+
+      let msg = `🆕 <b>Episode Baru Belum Ditonton (${unwatched.length})</b>\n\n`;
+
+      for (const item of unwatched) {
+        const ep = item.episode ? ` — sudah sampai Ep ${item.episode}` : '';
+        const nextEp = item.nextEpisode ? ` | Ep baru: ${item.nextEpisode}` : '';
+        msg += `📺 <b>${item.title}</b>\n   └${ep}${nextEp}\n`;
+      }
+
+      msg += `\n<i>Buka ekstensi untuk menandai sudah ditonton</i>`;
+
+      await sendMessage(chatId, msg);
+      return res.status(200).send('OK');
+    }
+
     // Unknown command
-    await sendMessage(chatId, `❓ Perintah tidak dikenal.\n\nPerintah yang tersedia:\n• /start\n• /link &lt;sync-id&gt;\n• /list\n• /schedule`);
+    await sendMessage(chatId, `❓ Perintah tidak dikenal.\n\nPerintah yang tersedia:\n• /start\n• /link &lt;sync-id&gt;\n• /list\n• /new\n• /schedule`);
     return res.status(200).send('OK');
 
   } catch (error) {
