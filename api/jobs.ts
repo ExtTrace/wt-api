@@ -15,10 +15,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { data: jobs, error } = await supabase
+    let query = supabase
       .from('job_applications')
-      .select('id, company, position, status, updated_at')
-      .order('updated_at', { ascending: false });
+      .select('id, company, position, status, updated_at');
+
+    // 1. Filter by status
+    const status = req.query.status;
+    if (status && typeof status === 'string') {
+      query = query.eq('status', status);
+    }
+
+    // 2. Search by company or position (case-insensitive)
+    const search = req.query.search;
+    if (search && typeof search === 'string') {
+      query = query.or(`company.ilike.%${search}%,position.ilike.%${search}%`);
+    }
+
+    // 3. Order by updated_at (asc/desc, default desc)
+    const order = req.query.order === 'asc' ? 'asc' : 'desc';
+    query = query.order('updated_at', { ascending: order === 'asc' });
+
+    const { data: jobs, error } = await query;
 
     if (error) throw error;
 
