@@ -22,12 +22,47 @@ interface MediaStorage {
   items: MediaItem[];
 }
 
-async function sendMessage(chatId: number | string, text: string): Promise<void> {
+// Helper: send Telegram Message
+async function sendMessage(chatId: number | string, text: string, replyMarkup?: any): Promise<void> {
   if (!botToken || !apiUrl) return;
   await fetch(`${apiUrl}/bot${botToken}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+      reply_markup: replyMarkup
+    }),
+  });
+}
+
+// Helper: edit Telegram Message text
+async function editMessageText(chatId: number | string, messageId: number, text: string, replyMarkup?: any): Promise<void> {
+  if (!botToken || !apiUrl) return;
+  await fetch(`${apiUrl}/bot${botToken}/editMessageText`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: 'HTML',
+      reply_markup: replyMarkup
+    }),
+  });
+}
+
+// Helper: answer Telegram callback query
+async function answerCallbackQuery(callbackQueryId: string, text?: string): Promise<void> {
+  if (!botToken || !apiUrl) return;
+  await fetch(`${apiUrl}/bot${botToken}/answerCallbackQuery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      callback_query_id: callbackQueryId,
+      text
+    }),
   });
 }
 
@@ -41,6 +76,29 @@ async function getSyncIdForChat(chatId: string): Promise<string | null> {
   return data?.sync_id || null;
 }
 
+// Send Loker Main Menu Keyboard
+async function sendLokerMenu(chatId: string, messageId?: number) {
+  const text = `💼 <b>Menu Pelacak Lamaran Kerja (Loker)</b>\n\nSilakan pilih menu aksi di bawah ini untuk mengelola loker Anda:`;
+  const replyMarkup = {
+    inline_keyboard: [
+      [
+        { text: '➕ Tambah Lamaran', callback_data: 'loker:add' },
+        { text: '📋 Lihat Semua', callback_data: 'loker:list' }
+      ],
+      [
+        { text: '🔄 Update Status', callback_data: 'loker:update' },
+        { text: '❌ Hapus Lamaran', callback_data: 'loker:delete' }
+      ]
+    ]
+  };
+
+  if (messageId) {
+    await editMessageText(chatId, messageId, text, replyMarkup);
+  } else {
+    await sendMessage(chatId, text, replyMarkup);
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).send('Method Not Allowed');
@@ -49,6 +107,293 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const update = req.body;
 
+    if (!supabase) {
+      console.error('Supabase is not configured');
+      return res.status(200).send('OK');
+    }
+
+    // ─── 1. HANDLE INLINE KEYBOARD CALLBACK QUERIES ──────────────────
+    if (update?.callback_query) {
+      const callbackQuery = update.callback_query;
+      const callbackData: string = callbackQuery.data;
+      const chatId = String(callbackQuery.message.chat.id);
+      const messageId = callbackQuery.message.message_id;
+
+      await answerCallbackQuery(callbackQuery.id);
+
+      // A. Main Menu
+      if (callbackData === 'loker:menu') {
+        await sendLokerMenu(chatId, messageId);
+        return res.status(200).send('OK');
+      }
+
+      // B. Add Application -> Starts conversation
+      if (callbackData === 'loker:add') {
+        await supabase
+          .from('user_sessions')
+          .upsert({ chat_id: chatId, step: 'WAITING_COMPANY', draft_data: {} }, { onConflict: 'chat_id' });
+
+        await editMessageText(
+          chatId,
+          messageId,
+          `➕ <b>Tambah Lamaran Kerja Baru</b>\n\nSilakan ketik <b>Nama Perusahaan</b> yang Anda lamar:\n\n<i>Ketik apa saja untuk mengirim nama perusahaan...</i>`,
+          {
+            inline_keyboard: [[{ text: '🚫 Batal', callback_data: 'loker:cancel' }]]
+          }
+        );
+        return res.status(200).send('OK');
+      }
+
+      // C. List Applications
+      if (callbackData === 'loker:list') {
+        const { data: apps } = await supabase
+          .from('job_applications')
+          .select('*')
+          .eq('chat_id', chatId)
+          .order('id', { ascending: true });
+
+        if (!apps || apps.length === 0) {
+          await editMessageText(
+            chatId,
+            messageId,
+            `📋 <b>Daftar Lamaran Kerja</b>\n\nBelum ada lamaran kerja yang tercatat. Silakan tambah lamaran baru!`,
+            {
+              inline_keyboard: [
+                [{ text: '➕ Tambah Lamaran', callback_data: 'loker:add' }],
+                [{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]
+              ]
+            }
+          );
+          return res.status(200).send('OK');
+        }
+
+        // Group by status
+        const groups: Record<string, any[]> = {
+          'Applied': [],
+          'Interview': [],
+          'Technical Test': [],
+          'Offering': [],
+          'Accepted': [],
+          'Rejected': []
+        };
+
+        for (const app of apps) {
+          const status = app.status || 'Applied';
+          if (!groups[status]) groups[status] = [];
+          groups[status].push(app);
+        }
+
+        let msg = `📋 <b>Daftar Lamaran Kerja Anda</b>\n\n`;
+        let hasContent = false;
+
+        const emojiMap: Record<string, string> = {
+          'Applied': '📝',
+          'Interview': '👥',
+          'Technical Test': '💻',
+          'Offering': '✨',
+          'Accepted': '🎉',
+          'Rejected': '❌'
+        };
+
+        for (const status of Object.keys(groups)) {
+          const list = groups[status];
+          if (list.length > 0) {
+            hasContent = true;
+            msg += `${emojiMap[status] || '•'} <b>${status} (${list.length})</b>\n`;
+            for (const app of list) {
+              msg += `  ├ <b>${app.company}</b> — ${app.position}\n`;
+            }
+            msg += `\n`;
+          }
+        }
+
+        if (!hasContent) {
+          msg += `Belum ada lamaran aktif.`;
+        }
+
+        await editMessageText(chatId, messageId, msg.trim(), {
+          inline_keyboard: [[{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]]
+        });
+        return res.status(200).send('OK');
+      }
+
+      // D. Update Application Status (Select Application)
+      if (callbackData === 'loker:update') {
+        const { data: apps } = await supabase
+          .from('job_applications')
+          .select('*')
+          .eq('chat_id', chatId);
+
+        if (!apps || apps.length === 0) {
+          await editMessageText(chatId, messageId, '❌ Tidak ada lamaran untuk di-update.', {
+            inline_keyboard: [[{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]]
+          });
+          return res.status(200).send('OK');
+        }
+
+        const inlineKeyboard = apps.map((app: any) => [
+          {
+            text: `${app.company} - ${app.position} (${app.status})`,
+            callback_data: `loker:select_update:${app.id}`
+          }
+        ]);
+        inlineKeyboard.push([{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]);
+
+        await editMessageText(chatId, messageId, '🔄 <b>Pilih lamaran yang ingin di-update statusnya:</b>', {
+          inline_keyboard: inlineKeyboard
+        });
+        return res.status(200).send('OK');
+      }
+
+      // E. Update Application Status (Select Status)
+      if (callbackData.startsWith('loker:select_update:')) {
+        const appId = callbackData.split(':')[2];
+        const statuses = ['Applied', 'Interview', 'Technical Test', 'Offering', 'Accepted', 'Rejected'];
+
+        const inlineKeyboard = statuses.map((status) => [
+          {
+            text: status,
+            callback_data: `loker:set_status:${appId}:${status}`
+          }
+        ]);
+        inlineKeyboard.push([{ text: '↩️ Kembali', callback_data: 'loker:update' }]);
+
+        await editMessageText(chatId, messageId, '🔄 <b>Pilih Tahap/Status Baru:</b>', {
+          inline_keyboard: inlineKeyboard
+        });
+        return res.status(200).send('OK');
+      }
+
+      // F. Delete Application (Select Application)
+      if (callbackData === 'loker:delete') {
+        const { data: apps } = await supabase
+          .from('job_applications')
+          .select('*')
+          .eq('chat_id', chatId);
+
+        if (!apps || apps.length === 0) {
+          await editMessageText(chatId, messageId, '❌ Tidak ada lamaran untuk dihapus.', {
+            inline_keyboard: [[{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]]
+          });
+          return res.status(200).send('OK');
+        }
+
+        const inlineKeyboard = apps.map((app: any) => [
+          {
+            text: `🗑️ Hapus ${app.company} - ${app.position}`,
+            callback_data: `loker:confirm_delete:${app.id}`
+          }
+        ]);
+        inlineKeyboard.push([{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]);
+
+        await editMessageText(chatId, messageId, '🗑️ <b>Pilih lamaran yang ingin dihapus:</b>', {
+          inline_keyboard: inlineKeyboard
+        });
+        return res.status(200).send('OK');
+      }
+
+      // G. Delete Application (Confirm Action)
+      if (callbackData.startsWith('loker:confirm_delete:')) {
+        const appId = callbackData.split(':')[2];
+        const { error } = await supabase
+          .from('job_applications')
+          .delete()
+          .eq('id', appId)
+          .eq('chat_id', chatId);
+
+        if (error) {
+          await editMessageText(chatId, messageId, `❌ Gagal menghapus lamaran: ${error.message}`, {
+            inline_keyboard: [[{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]]
+          });
+        } else {
+          await editMessageText(chatId, messageId, '✅ Lamaran berhasil dihapus dari daftar tracker loker Anda.', {
+            inline_keyboard: [[{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]]
+          });
+        }
+        return res.status(200).send('OK');
+      }
+
+      // H. Cancel session
+      if (callbackData === 'loker:cancel') {
+        await supabase.from('user_sessions').delete().eq('chat_id', chatId);
+        await editMessageText(chatId, messageId, '🚫 Aksi pendaftaran loker telah dibatalkan.', {
+          inline_keyboard: [[{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]]
+        });
+        return res.status(200).send('OK');
+      }
+
+      // I. Set Status (Finalize saving new draft or updating existing record)
+      if (callbackData.startsWith('loker:set_status:')) {
+        const parts = callbackData.split(':');
+        const targetId = parts[2];
+        const newStatus = parts[3];
+
+        if (targetId === 'draft') {
+          // Finalize saving new application draft
+          const { data: session } = await supabase
+            .from('user_sessions')
+            .select('*')
+            .eq('chat_id', chatId)
+            .single();
+
+          if (!session) {
+            await editMessageText(chatId, messageId, '❌ Sesi pendaftaran kedaluwarsa. Silakan mulai kembali.', {
+              inline_keyboard: [[{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]]
+            });
+            return res.status(200).send('OK');
+          }
+
+          const draft = session.draft_data;
+          const { error } = await supabase
+            .from('job_applications')
+            .insert({
+              chat_id: chatId,
+              company: draft.company,
+              position: draft.position,
+              status: newStatus
+            });
+
+          if (error) {
+            await editMessageText(chatId, messageId, `❌ Gagal menyimpan lamaran: ${error.message}`, {
+              inline_keyboard: [[{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]]
+            });
+          } else {
+            await supabase.from('user_sessions').delete().eq('chat_id', chatId);
+            await editMessageText(
+              chatId,
+              messageId,
+              `✅ <b>Lamaran Berhasil Disimpan!</b>\n\n` +
+              `🏢 Perusahaan: <b>${draft.company}</b>\n` +
+              `💼 Posisi: <b>${draft.position}</b>\n` +
+              `📍 Tahap saat ini: <b>${newStatus}</b>`,
+              {
+                inline_keyboard: [[{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]]
+              }
+            );
+          }
+        } else {
+          // Update existing job application status
+          const { error } = await supabase
+            .from('job_applications')
+            .update({ status: newStatus, updated_at: new Date().toISOString() })
+            .eq('id', targetId)
+            .eq('chat_id', chatId);
+
+          if (error) {
+            await editMessageText(chatId, messageId, `❌ Gagal meng-update status: ${error.message}`, {
+              inline_keyboard: [[{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]]
+            });
+          } else {
+            await editMessageText(chatId, messageId, `✅ Status lamaran berhasil diperbarui menjadi <b>${newStatus}</b>!`, {
+              inline_keyboard: [[{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]]
+            });
+          }
+        }
+        return res.status(200).send('OK');
+      }
+    }
+
+    // ─── 2. HANDLE STANDARD CHAT TEXT INPUTS ──────────────────────────
     if (!update?.message?.text) {
       return res.status(200).send('OK');
     }
@@ -56,7 +401,72 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const chatId = String(update.message.chat.id);
     const text: string = update.message.text.trim();
 
-    // ─── /start ───────────────────────────────────────────────────────
+    // Check active conversational session
+    const { data: activeSession } = await supabase
+      .from('user_sessions')
+      .select('*')
+      .eq('chat_id', chatId)
+      .single();
+
+    if (activeSession) {
+      const step = activeSession.step;
+      const draft = activeSession.draft_data;
+
+      if (step === 'WAITING_COMPANY') {
+        // Save company name
+        const newDraft = { ...draft, company: text };
+        await supabase
+          .from('user_sessions')
+          .update({ step: 'WAITING_POSITION', draft_data: newDraft })
+          .eq('chat_id', chatId);
+
+        await sendMessage(
+          chatId,
+          `🏢 Perusahaan: <b>${text}</b>\n\nSelanjutnya, silakan ketik <b>Posisi Pekerjaan</b> (Contoh: <i>Software Engineer</i>):`,
+          {
+            inline_keyboard: [[{ text: '🚫 Batal', callback_data: 'loker:cancel' }]]
+          }
+        );
+        return res.status(200).send('OK');
+      }
+
+      if (step === 'WAITING_POSITION') {
+        // Save position and prompt status selection
+        const newDraft = { ...draft, position: text };
+        await supabase
+          .from('user_sessions')
+          .update({ step: 'WAITING_STATUS', draft_data: newDraft })
+          .eq('chat_id', chatId);
+
+        const statuses = ['Applied', 'Interview', 'Technical Test', 'Offering', 'Accepted', 'Rejected'];
+        const inlineKeyboard = statuses.map((status) => [
+          {
+            text: status,
+            callback_data: `loker:set_status:draft:${status}`
+          }
+        ]);
+        inlineKeyboard.push([{ text: '🚫 Batal', callback_data: 'loker:cancel' }]);
+
+        await sendMessage(
+          chatId,
+          `🏢 Perusahaan: <b>${draft.company}</b>\n` +
+          `💼 Posisi: <b>${text}</b>\n\n` +
+          `Terakhir, silakan pilih **Tahap/Status Awal** lamaran Anda:`,
+          {
+            inline_keyboard: inlineKeyboard
+          }
+        );
+        return res.status(200).send('OK');
+      }
+    }
+
+    // ─── 3. COMMAND: /loker (Job Tracker Menu) ───────────────────────
+    if (text.startsWith('/loker')) {
+      await sendLokerMenu(chatId);
+      return res.status(200).send('OK');
+    }
+
+    // ─── COMMAND: /start ──────────────────────────────────────────────
     if (text.startsWith('/start')) {
       await sendMessage(
         chatId,
@@ -65,14 +475,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `• <code>/link &lt;sync-id&gt;</code> — Hubungkan bot ke ekstensi Anda\n` +
         `• <code>/list</code> — Lihat daftar tontonan Anda\n` +
         `• <code>/new</code> — Episode baru yang belum ditonton\n` +
-        `• <code>/schedule</code> — Cek jadwal episode berikutnya\n\n` +
+        `• <code>/schedule</code> — Cek jadwal episode berikutnya\n` +
+        `• <code>/loker</code> — 💼 Kelola dan lacak progress Lamaran Kerja Anda\n\n` +
         `Untuk menghubungkan, buka menu <b>Options → Data Management</b> di ekstensi, ` +
         `salin Sync ID Anda, lalu kirim:\n<code>/link awt-sync-xxxxxxxx</code>`
       );
       return res.status(200).send('OK');
     }
 
-    // ─── /link <sync-id> ──────────────────────────────────────────────
+    // ─── COMMAND: /link <sync-id> ─────────────────────────────────────
     if (text.startsWith('/link')) {
       const parts = text.split(/\s+/);
       const syncId = parts[1]?.trim();
@@ -82,12 +493,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).send('OK');
       }
 
-      if (!supabase) {
-        await sendMessage(chatId, '❌ Database tidak terkonfigurasi.');
-        return res.status(200).send('OK');
-      }
-
-      // Verify that the sync ID exists in the database
       const { data: syncData } = await supabase
         .from('sync_storage')
         .select('id')
@@ -99,7 +504,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).send('OK');
       }
 
-      // Save the link
       const { error } = await supabase
         .from('chat_links')
         .upsert({ chat_id: chatId, sync_id: syncId }, { onConflict: 'chat_id' });
@@ -114,13 +518,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).send('OK');
     }
 
-    // ─── /list ────────────────────────────────────────────────────────
+    // ─── COMMAND: /list ───────────────────────────────────────────────
     if (text.startsWith('/list')) {
-      if (!supabase) {
-        await sendMessage(chatId, '❌ Database tidak terkonfigurasi.');
-        return res.status(200).send('OK');
-      }
-
       const syncId = await getSyncIdForChat(chatId);
       if (!syncId) {
         await sendMessage(chatId, `❌ Akun belum dihubungkan.\n\nKirim: <code>/link &lt;sync-id&gt;</code>\n\nSync ID bisa ditemukan di <b>Options → Data Management</b> pada ekstensi.`);
@@ -166,13 +565,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).send('OK');
     }
 
-    // ─── /schedule ────────────────────────────────────────────────────
+    // ─── COMMAND: /schedule ───────────────────────────────────────────
     if (text.startsWith('/schedule')) {
-      if (!supabase) {
-        await sendMessage(chatId, '❌ Database tidak terkonfigurasi.');
-        return res.status(200).send('OK');
-      }
-
       const syncId = await getSyncIdForChat(chatId);
       if (!syncId) {
         await sendMessage(chatId, `❌ Akun belum dihubungkan.\n\nKirim: <code>/link &lt;sync-id&gt;</code>\n\nSync ID bisa ditemukan di <b>Options → Data Management</b> pada ekstensi.`);
@@ -195,7 +589,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       await sendMessage(chatId, `🔍 Mengecek jadwal untuk <b>${active.length} anime</b>...\n<i>Mohon tunggu sebentar</i>`);
 
-      // Query AniList for all anime in parallel
       const ANILIST_URL = 'https://graphql.anilist.co';
       const graphqlQuery = `
         query ($search: String) {
@@ -214,14 +607,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
             body: JSON.stringify({ query: graphqlQuery, variables: { search: item.title } }),
           });
-          const json = await res.json() as { data?: { Media?: { title: { romaji: string; english: string | null }; nextAiringEpisode: { airingAt: number; episode: number } | null } } };
+          const json = await res.json() as any;
           return { item, anilist: json?.data?.Media ?? null };
         })
       );
 
       const now = Math.floor(Date.now() / 1000);
-
-      // Separate into: has schedule, no schedule
       const withSchedule: string[] = [];
       const noSchedule: string[] = [];
 
@@ -258,7 +649,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      // Sort: soonest first (already in order since Promise.allSettled preserves order)
       let msg = `🗓️ <b>Jadwal Episode Berikutnya</b>\n\n`;
 
       if (withSchedule.length > 0) {
@@ -271,21 +661,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         msg += noSchedule.join('\n');
       }
 
-      if (withSchedule.length === 0 && noSchedule.length === 0) {
-        msg += 'Tidak ada informasi jadwal yang tersedia.';
-      }
-
       await sendMessage(chatId, msg);
       return res.status(200).send('OK');
     }
 
-    // ─── /new ──────────────────────────────────────────────────────────
+    // ─── COMMAND: /new ────────────────────────────────────────────────
     if (text.startsWith('/new')) {
-      if (!supabase) {
-        await sendMessage(chatId, '❌ Database tidak terkonfigurasi.');
-        return res.status(200).send('OK');
-      }
-
       const syncId = await getSyncIdForChat(chatId);
       if (!syncId) {
         await sendMessage(chatId, `❌ Akun belum dihubungkan.\n\nKirim: <code>/link &lt;sync-id&gt;</code>`);
@@ -322,8 +703,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).send('OK');
     }
 
-    // Unknown command
-    await sendMessage(chatId, `❓ Perintah tidak dikenal.\n\nPerintah yang tersedia:\n• /start\n• /link &lt;sync-id&gt;\n• /list\n• /new\n• /schedule`);
+    // Unknown command fallback (only if no active conversational step is running)
+    await sendMessage(chatId, `❓ Perintah tidak dikenal.\n\nPerintah yang tersedia:\n• /start\n• /link &lt;sync-id&gt;\n• /list\n• /new\n• /schedule\n• /loker`);
     return res.status(200).send('OK');
 
   } catch (error) {
