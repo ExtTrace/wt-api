@@ -1,49 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-const apiUrl = process.env.TELEGRAM_API_URL;
-const botToken = process.env.TELEGRAM_BOT_TOKEN;
-
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY || '';
-const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
-
-const ANILIST_URL = 'https://graphql.anilist.co';
-const ANILIST_QUERY = `
-  query ($search: String) {
-    Media(search: $search, type: ANIME, status_in: [RELEASING, NOT_YET_RELEASED]) {
-      id
-      title { romaji english }
-      nextAiringEpisode { airingAt episode }
-    }
-  }
-`;
-
-// Helper: send Telegram notification
-async function sendTelegram(chatId: string, text: string): Promise<void> {
-  if (!botToken || !apiUrl) return;
-  await fetch(`${apiUrl}/bot${botToken}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
-  });
-}
-
-// Helper: send Discord notification
-async function sendDiscord(webhookUrl: string, text: string): Promise<void> {
-  // Convert HTML tags to Markdown/Discord format simply
-  let discordText = text
-    .replace(/<b>(.*?)<\/b>/g, '**$1**')
-    .replace(/<i>(.*?)<\/i>/g, '*$1*')
-    .replace(/<code>(.*?)<\/code>/g, '`$1`')
-    .replace(/<a href="(.*?)">(.*?)<\/a>/g, '[$2]($1)');
-
-  await fetch(webhookUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content: discordText }),
-  });
-}
+import { supabase } from '../lib/supabase';
+import { sendMessage } from '../lib/telegram';
+import { sendDiscord } from '../lib/discord';
+import { fetchUpcomingEpisode } from '../lib/anilist';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!supabase) {
@@ -51,7 +10,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // 1. Fetch all sync storage records
     const { data: records, error: fetchError } = await supabase
       .from('sync_storage')
       .select('*');
@@ -60,18 +18,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const results = [];
 
-    // 2. Loop through each sync record
     for (const record of records || []) {
       const payload = record.data;
       if (!payload || !payload.cloudSettings?.enabled || !payload.cloudSettings?.useCloudCron) {
-        continue; // Skip if Cloud Sync or Cloud Cron is disabled
+        continue;
       }
 
       const items = payload.items || [];
       const tgSettings = payload.telegramSettings;
       const dsSettings = payload.discordSettings;
 
-      // Skip if no notifications are configured
       const tgEnabled = tgSettings?.enabled && tgSettings?.chatId;
       const dsEnabled = dsSettings?.enabled && dsSettings?.webhookUrl;
       if (!tgEnabled && !dsEnabled) {
@@ -82,7 +38,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const newlyReleased = [];
       const upcomingReminders = [];
 
-      // Process each media item
       for (const item of items) {
         if (item.isArchived) continue;
 
@@ -95,7 +50,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (timeUntilAiring > 0) {
             shouldQuery = false;
 
-            // Reminder within 24 hours
             const ONE_DAY_MS = 24 * 60 * 60 * 1000;
             if (timeUntilAiring <= ONE_DAY_MS && item.nextEpisode) {
               const reminderStr = `Episode ${item.nextEpisode}`;
@@ -115,15 +69,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (shouldQuery) {
           try {
-            const aniResponse = await fetch(ANILIST_URL, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-              body: JSON.stringify({ query: ANILIST_QUERY, variables: { search: item.title } }),
-            });
+            const anilistResult = await fetchUpcomingEpisode(item.title);
 
-            if (aniResponse.ok) {
-              const json = await aniResponse.json() as any;
-              const anilistResult = json?.data?.Media;
+            if (anilistResult) {
 
               if (anilistResult?.nextAiringEpisode) {
                 const nextEpNum = anilistResult.nextAiringEpisode.episode;
@@ -133,7 +81,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const userWatchedEpMatch = item.episode?.match(/\d+/);
                 const userWatchedEpNum = userWatchedEpMatch ? parseInt(userWatchedEpMatch[0], 10) : 0;
 
-                // Save next airing time
                 item.nextEpisodeAvailableAt = new Date(anilistResult.nextAiringEpisode.airingAt * 1000).toISOString();
                 item.nextEpisode = nextEpNum.toString();
                 updated = true;
@@ -152,7 +99,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   });
                 }
               } else {
-                // Set checking offset for completed series to avoid spam
                 item.nextEpisodeAvailableAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
                 item.nextEpisode = null;
                 updated = true;
@@ -164,7 +110,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      // Build message
       let fullMessage = '';
 
       if (upcomingReminders.length > 0) {
@@ -189,14 +134,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const finalMessage = `🌙 <b>Anime Daily Digest (Cloud)</b>\n\n${fullMessage.trim()}`;
 
         if (tgEnabled) {
-          await sendTelegram(tgSettings.chatId, finalMessage).catch(console.error);
+          await sendMessage(tgSettings.chatId, finalMessage).catch(console.error);
         }
         if (dsEnabled) {
           await sendDiscord(dsSettings.webhookUrl, finalMessage).catch(console.error);
         }
       }
 
-      // Save updated data to Supabase
       if (updated) {
         payload.items = items;
         const { error: updateError } = await supabase

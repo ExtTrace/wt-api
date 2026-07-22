@@ -1,15 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { supabase } from '../lib/supabase';
 
-const ALLOWED_ORIGIN = '*'; // In production, restrict this to chrome-extension://<id>
-
-// Ensure Supabase environment variables are set in Vercel Dashboard
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY || '';
-const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+const ALLOWED_ORIGIN = '*';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS configuration
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
@@ -19,16 +13,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   );
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
   if (!supabase) {
-    return res.status(500).json({ error: 'Supabase URL or Key is not configured' });
+    return res.status(500).json({ error: 'Supabase is not configured' });
   }
 
   const syncId = req.headers['x-sync-id'];
-
   if (!syncId || typeof syncId !== 'string') {
     return res.status(400).json({ error: 'Missing or invalid x-sync-id header' });
   }
@@ -41,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .eq('id', syncId)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 means no rows returned (which is fine for new users)
+      if (error && error.code !== 'PGRST116') {
         throw error;
       }
 
@@ -50,7 +42,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'POST') {
       const { data } = req.body;
-      
       if (!data) {
         return res.status(400).json({ error: 'Missing data in request body' });
       }
@@ -63,13 +54,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
 
       if (error) throw error;
-
       return res.status(200).json({ success: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error: any) {
-    console.error('Supabase Error:', error);
+    console.error('Sync API Error:', error);
     return res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 }
