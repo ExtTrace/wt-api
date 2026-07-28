@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { setBotCommands } from '../lib/telegram';
+import { setBotCommands, setWebhook } from '../lib/telegram';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const commands = [
@@ -24,11 +24,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   ];
 
   try {
+    // 1. Register commands
     await setBotCommands(commands);
+
+    // 2. Automatically register / update webhook to Telegram using the current request host
+    const host = req.headers.host;
+    const proto = req.headers['x-forwarded-proto'] || 'https';
+    const webhookUrl = `${proto}://${host}/api/webhook`;
+    await setWebhook(webhookUrl);
 
     return res.status(200).json({
       success: true,
-      message: 'Bot commands registered successfully!',
+      message: 'Bot commands and Webhook registered successfully!',
+      webhookUrl,
       commands,
     });
   } catch (error) {

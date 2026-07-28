@@ -74,3 +74,22 @@ export async function setBotCommands(
     throw new Error(`Telegram API Error: ${error}`);
   }
 }
+
+export async function setWebhook(url: string): Promise<void> {
+  if (!botToken || !apiUrl) {
+    throw new Error('Bot token or API URL not configured');
+  }
+
+  const response = await fetch(`${apiUrl}/bot${botToken}/setWebhook`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ url }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Telegram API Error: ${error}`);
+  }
+}
