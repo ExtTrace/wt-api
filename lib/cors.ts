@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'https://febriand.vercel.app',
+  'https://dirgafeb.my.id',
 ];
 
 export async function handleCors(req: VercelRequest, res: VercelResponse) {
@@ -11,7 +12,7 @@ export async function handleCors(req: VercelRequest, res: VercelResponse) {
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   } else {
-    res.setHeader('Access-Control-Allow-Origin', 'https://febriand.vercel.app');
+    res.setHeader('Access-Control-Allow-Origin', 'https://dirgafeb.my.id');
   }
 
   res.setHeader('Access-Control-Allow-Credentials', 'true');
