@@ -1,0 +1,87 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { supabase } from '../../lib/supabase';
+import { computeAnalytics } from '../../lib/iot/analytics';
+import { verifyDevice, registerDeviceIfMissing, recordTelemetry, fetchTelemetryHistory } from '../../lib/iot/db';
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // OPTIONS preflight check handled cleanly by Vercel
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (!supabase) {
+    return res.status(500).json({ error: 'Supabase client is not configured' });
+  }
+
+  try {
+    // ─── 1. POST /api/iot/telemetry (Incoming ESP32 Telemetry) ──────
+    if (req.method === 'POST') {
+      const { device_id, temperature, humidity } = req.body || {};
+
+      // Input Validation
+      if (!device_id || typeof device_id !== 'string') {
+        return res.status(400).json({ error: 'Missing or invalid "device_id" string field' });
+      }
+
+      if (typeof temperature !== 'number' || isNaN(temperature)) {
+        return res.status(400).json({ error: 'Missing or invalid "temperature" numeric field' });
+      }
+
+      if (typeof humidity !== 'number' || isNaN(humidity)) {
+        return res.status(400).json({ error: 'Missing or invalid "humidity" numeric field' });
+      }
+
+      // Check device registration in iot_devices master table
+      const isDeviceValid = await verifyDevice(device_id);
+      if (!isDeviceValid) {
+        // Auto-register device if missing
+        await registerDeviceIfMissing(device_id, `ESP32 Device (${device_id})`, 'Ruangan');
+      }
+
+      // Compute mathematical & business analytics
+      const analytics = computeAnalytics(temperature, humidity);
+
+      // Relational Insertion into Supabase Database
+      const result = await recordTelemetry(device_id, temperature, humidity, analytics);
+
+      return res.status(201).json({
+        success: true,
+        message: 'Telemetry and analytics recorded successfully',
+        data: {
+          id: result.telemetryId,
+          device_id: result.deviceId,
+          temperature: result.temperature,
+          humidity: result.humidity,
+          analytics: {
+            dew_point: result.analytics.dewPoint,
+            mould_risk: result.analytics.mouldRisk,
+            room_status: result.analytics.roomStatus,
+          },
+          created_at: result.createdAt,
+        },
+      });
+    }
+
+    // ─── 2. GET /api/iot/telemetry (Fetch History Logs) ──────────────
+    if (req.method === 'GET') {
+      const deviceId = req.query.device_id as string | undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+
+      const logs = await fetchTelemetryHistory(deviceId, limit);
+
+      return res.status(200).json({
+        success: true,
+        count: logs?.length || 0,
+        data: logs,
+      });
+    }
+
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  } catch (error: any) {
+    console.error('IoT Telemetry API Error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Internal Server Error',
+    });
+  }
+}
