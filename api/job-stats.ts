@@ -19,6 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const stats: Record<string, number> = {
       Applied: 0,
       Interview: 0,
+      'Psiko Test': 0,
       'Technical Test': 0,
       Offering: 0,
       Accepted: 0,

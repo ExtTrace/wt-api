@@ -76,6 +76,7 @@ export async function handleLokerCallbackQuery(chatId: string, callbackQuery: an
       const groups: Record<string, any[]> = {
         'Applied': [],
         'Interview': [],
+        'Psiko Test': [],
         'Technical Test': [],
         'Offering': [],
         'Accepted': [],
@@ -93,6 +94,7 @@ export async function handleLokerCallbackQuery(chatId: string, callbackQuery: an
       const emojiMap: Record<string, string> = {
         'Applied': '📝',
         'Interview': '👥',
+        'Psiko Test': '🧠',
         'Technical Test': '💻',
         'Offering': '✨',
         'Accepted': '🎉',
@@ -184,7 +186,7 @@ export async function handleLokerCallbackQuery(chatId: string, callbackQuery: an
   // Handle Dynamic Sub-data Callback Queries
   if (callbackData.startsWith('loker:select_update:')) {
     const appId = callbackData.split(':')[2];
-    const statuses = ['Applied', 'Interview', 'Technical Test', 'Offering', 'Accepted', 'Rejected'];
+    const statuses = ['Applied', 'Interview', 'Psiko Test', 'Technical Test', 'Offering', 'Accepted', 'Rejected'];
 
     const inlineKeyboard = statuses.map((status) => [
       {
@@ -316,7 +318,7 @@ export async function handleLokerConversationStep(chatId: string, text: string, 
       .update({ step: 'WAITING_STATUS', draft_data: newDraft })
       .eq('chat_id', chatId);
 
-    const statuses = ['Applied', 'Interview', 'Technical Test', 'Offering', 'Accepted', 'Rejected'];
+    const statuses = ['Applied', 'Interview', 'Psiko Test', 'Technical Test', 'Offering', 'Accepted', 'Rejected'];
     const inlineKeyboard = statuses.map((status) => [
       {
         text: status,
