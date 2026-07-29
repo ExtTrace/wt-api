@@ -47,7 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Check active conversational session first
     const { data: activeSession } = await supabase
-      .from('user_sessions')
+      .from('bot_user_sessions')
       .select('*')
       .eq('chat_id', chatId)
       .single();

@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { data: records, error: fetchError } = await supabase
-      .from('sync_storage')
+      .from('awt_sync_storage')
       .select('*');
 
     if (fetchError) throw fetchError;
@@ -144,7 +144,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (updated) {
         payload.items = items;
         const { error: updateError } = await supabase
-          .from('sync_storage')
+          .from('awt_sync_storage')
           .update({ data: payload, updated_at: new Date().toISOString() })
           .eq('id', record.id);
 

@@ -18,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method === 'GET') {
       const { data, error } = await supabase
-        .from('sync_storage')
+        .from('awt_sync_storage')
         .select('data')
         .eq('id', syncId)
         .single();
@@ -37,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const { error } = await supabase
-        .from('sync_storage')
+        .from('awt_sync_storage')
         .upsert(
           { id: syncId, data: data, updated_at: new Date().toISOString() },
           { onConflict: 'id' }

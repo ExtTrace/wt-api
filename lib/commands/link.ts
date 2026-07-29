@@ -4,7 +4,7 @@ import { sendMessage } from '../telegram';
 export async function handleLinkStart(chatId: string): Promise<void> {
   if (!supabase) return;
   await supabase
-    .from('user_sessions')
+    .from('bot_user_sessions')
     .upsert({ chat_id: chatId, step: 'WAITING_SYNC_ID', draft_data: {} }, { onConflict: 'chat_id' });
 
   await sendMessage(
@@ -31,7 +31,7 @@ export async function handleLinkStep(chatId: string, text: string): Promise<void
   }
 
   const { data: syncData } = await supabase
-    .from('sync_storage')
+    .from('awt_sync_storage')
     .select('id')
     .eq('id', syncId)
     .single();
@@ -48,7 +48,7 @@ export async function handleLinkStep(chatId: string, text: string): Promise<void
   }
 
   const { error } = await supabase
-    .from('chat_links')
+    .from('awt_chat_links')
     .upsert({ chat_id: chatId, sync_id: syncId }, { onConflict: 'chat_id' });
 
   if (error) {
@@ -57,6 +57,6 @@ export async function handleLinkStep(chatId: string, text: string): Promise<void
     return;
   }
 
-  await supabase.from('user_sessions').delete().eq('chat_id', chatId);
+  await supabase.from('bot_user_sessions').delete().eq('chat_id', chatId);
   await sendMessage(chatId, `✅ Berhasil dihubungkan!\n\nSync ID: <code>${syncId}</code>\n\nSekarang ketik /list untuk melihat daftar tontonan Anda.`);
 }

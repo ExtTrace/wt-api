@@ -5,7 +5,7 @@ import type { MediaStorage } from '../types';
 async function getSyncIdForChat(chatId: string): Promise<string | null> {
   if (!supabase) return null;
   const { data } = await supabase
-    .from('chat_links')
+    .from('awt_chat_links')
     .select('sync_id')
     .eq('chat_id', chatId)
     .single();
@@ -21,7 +21,7 @@ export async function handleNew(chatId: string): Promise<void> {
   }
 
   const { data: storageData } = await supabase
-    .from('sync_storage')
+    .from('awt_sync_storage')
     .select('data')
     .eq('id', syncId)
     .single();

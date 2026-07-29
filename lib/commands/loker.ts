@@ -38,7 +38,7 @@ export async function handleLokerCallbackQuery(chatId: string, callbackQuery: an
 
     case 'loker:add':
       await supabase
-        .from('user_sessions')
+        .from('bot_user_sessions')
         .upsert({ chat_id: chatId, step: 'WAITING_COMPANY', draft_data: {} }, { onConflict: 'chat_id' });
 
       await editMessageText(
@@ -176,7 +176,7 @@ export async function handleLokerCallbackQuery(chatId: string, callbackQuery: an
     }
 
     case 'loker:cancel':
-      await supabase.from('user_sessions').delete().eq('chat_id', chatId);
+      await supabase.from('bot_user_sessions').delete().eq('chat_id', chatId);
       await editMessageText(chatId, messageId, '🚫 Aksi pendaftaran/menghubungkan telah dibatalkan.', {
         inline_keyboard: [[{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]]
       });
@@ -229,7 +229,7 @@ export async function handleLokerCallbackQuery(chatId: string, callbackQuery: an
 
     if (targetId === 'draft') {
       const { data: session } = await supabase
-        .from('user_sessions')
+        .from('bot_user_sessions')
         .select('*')
         .eq('chat_id', chatId)
         .single();
@@ -256,7 +256,7 @@ export async function handleLokerCallbackQuery(chatId: string, callbackQuery: an
           inline_keyboard: [[{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]]
         });
       } else {
-        await supabase.from('user_sessions').delete().eq('chat_id', chatId);
+        await supabase.from('bot_user_sessions').delete().eq('chat_id', chatId);
         await editMessageText(
           chatId,
           messageId,
@@ -297,7 +297,7 @@ export async function handleLokerConversationStep(chatId: string, text: string, 
   if (step === 'WAITING_COMPANY') {
     const newDraft = { ...draft, company: text };
     await supabase
-      .from('user_sessions')
+      .from('bot_user_sessions')
       .update({ step: 'WAITING_POSITION', draft_data: newDraft })
       .eq('chat_id', chatId);
 
@@ -314,7 +314,7 @@ export async function handleLokerConversationStep(chatId: string, text: string, 
   if (step === 'WAITING_POSITION') {
     const newDraft = { ...draft, position: text };
     await supabase
-      .from('user_sessions')
+      .from('bot_user_sessions')
       .update({ step: 'WAITING_STATUS', draft_data: newDraft })
       .eq('chat_id', chatId);
 
