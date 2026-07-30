@@ -12,6 +12,7 @@ import {
   handleLokerCallbackQuery,
   handleLokerConversationStep,
 } from '../lib/commands';
+import { canAccessLoker } from '../lib/permission';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -65,6 +66,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const command = text.split(/\s+/)[0].toLowerCase();
 
     // ─── 3. COMMAND DISPATCHER SWITCH-CASE ───────────────────────────
+    const isAllowed = await canAccessLoker(chatId);
+
+    const unknownCommandMessage =
+      `❓ Perintah tidak dikenal.\n\nPerintah yang tersedia:\n` +
+      `• /start\n• /link\n• /list\n• /new\n• /schedule\n`;
+
     switch (command) {
       case '/start':
         await handleStart(chatId);
@@ -87,20 +94,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         break;
 
       case '/loker':
+        if (!isAllowed) {
+          await sendMessage(chatId, unknownCommandMessage);
+          break;
+        }
+
         await sendLokerMenu(chatId);
         break;
 
       default:
         // Unknown command fallback
-        await sendMessage(
-          chatId,
-          `❓ Perintah tidak dikenal.\n\nPerintah yang tersedia:\n` +
-          `• /start\n• /link\n• /list\n• /new\n• /schedule\n• /loker`
-        );
+        await sendMessage(chatId, unknownCommandMessage);
     }
 
     return res.status(200).send('OK');
-
   } catch (error) {
     console.error('Webhook error:', error);
     return res.status(200).send('OK');

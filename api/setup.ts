@@ -1,7 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { setBotCommands, setWebhook } from '../lib/telegram';
+import { canAccessLoker } from '../lib/permission';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const isAllowed = await canAccessLoker(req.query.chatId as string);
+
   const commands = [
     { command: 'start', description: 'Mulai dan lihat panduan penggunaan' },
     { command: 'list', description: 'Lihat daftar anime yang sedang ditonton' },
@@ -18,6 +21,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       description: 'Hubungkan bot ke ekstensi (butuh Sync ID)',
     },
   ];
+
+  if (isAllowed) {
+    commands.push({
+      command: 'loker',
+      description: 'Kelola dan lacak progress lamaran kerja (Loker)',
+    });
+  }
 
   try {
     // 1. Register commands
