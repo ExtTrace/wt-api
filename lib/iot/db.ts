@@ -317,7 +317,7 @@ export async function fetchTelemetryHistory(
     query = query.eq('device_id', deviceId);
   }
 
-  if (locationId) {
+  if (locationId && locationId.toUpperCase() !== 'ALL') {
     query = query.eq('location_id', locationId);
   }
 

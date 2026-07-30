@@ -25,12 +25,13 @@ export function calculateDewPoint(temp: number, hum: number): number {
 
 /**
  * Determines Mould Risk threshold.
+ * Standard indoor mold risk triggers when Relative Humidity >= 65.0% and Temperature >= 23.0°C.
  * @param temp Temperature in Celsius
  * @param hum Relative Humidity in %
- * @returns true if humidity > 70.0 AND temperature > 25.0, else false
+ * @returns true if humidity >= 65.0 AND temperature >= 23.0, else false
  */
 export function calculateMouldRisk(temp: number, hum: number): boolean {
-  return hum > 70.0 && temp > 25.0;
+  return hum >= 65.0 && temp >= 23.0;
 }
 
 /**
@@ -40,10 +41,10 @@ export function calculateMouldRisk(temp: number, hum: number): boolean {
  * @returns Environmental status label
  */
 export function determineRoomStatus(temp: number, hum: number): string {
-  if (hum > 75.0) {
+  if (hum >= 70.0) {
     return 'LEMBAP / PENGAP';
   }
-  if (temp > 30.0) {
+  if (temp >= 30.0) {
     return 'PANAS / GERAH';
   }
   if (temp >= 22.0 && temp <= 28.0 && hum >= 40.0 && hum <= 65.0) {
