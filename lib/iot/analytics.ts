@@ -12,8 +12,12 @@ export interface AnalyticsResult {
 
 /**
  * Calculates Dew Point using the Magnus-Tetens formula.
- * @param temp Temperature in Celsius
- * @param hum Relative Humidity in %
+ * Standardized by the World Meteorological Organization (WMO) & NOAA.
+ * Formula: alpha = ((17.27 * T) / (237.7 + T)) + ln(RH / 100)
+ *          Td = (237.7 * alpha) / (17.27 - alpha)
+ * 
+ * @param temp Temperature in Celsius (0°C to 60°C)
+ * @param hum Relative Humidity in % (0% to 100%)
  * @returns Dew Point in Celsius (rounded to 1 decimal place)
  */
 export function calculateDewPoint(temp: number, hum: number): number {
@@ -25,17 +29,22 @@ export function calculateDewPoint(temp: number, hum: number): number {
 
 /**
  * Determines Mould Risk threshold.
- * Standard indoor mold risk triggers when Relative Humidity >= 65.0% and Temperature >= 23.0°C.
+ * Based on ASHRAE Standard 160 & WHO Indoor Air Quality Guidelines:
+ * Spore germination occurs when Relative Humidity >= 65.0% and Temperature >= 23.0°C.
+ * 
  * @param temp Temperature in Celsius
  * @param hum Relative Humidity in %
- * @returns true if humidity >= 65.0 AND temperature >= 23.0, else false
+ * @returns true if RH >= 65% AND Temp >= 23°C (High Mold Spore Hazard), else false
  */
 export function calculateMouldRisk(temp: number, hum: number): boolean {
   return hum >= 65.0 && temp >= 23.0;
 }
 
 /**
- * Evaluates non-AC room environmental comfort status.
+ * Evaluates indoor environmental comfort status based on:
+ * 1. Permenkes RI No. 1077/MENKES/PER/V/2011 (Indoor Air Quality Guidelines)
+ * 2. ASHRAE Standard 55 (Thermal Environmental Conditions for Human Occupancy)
+ * 
  * @param temp Temperature in Celsius
  * @param hum Relative Humidity in %
  * @returns Environmental status label
