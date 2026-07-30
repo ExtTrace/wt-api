@@ -73,17 +73,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // ─── 2. GET /api/iot/telemetry (Fetch History Logs) ──────────────
+    // ─── 2. GET /api/iot/telemetry (Fetch Paginated History Logs) ─────
     if (req.method === 'GET') {
       const deviceId = req.query.device_id as string | undefined;
+      const locationId = req.query.location_id as string | undefined;
+      const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
 
-      const logs = await fetchTelemetryHistory(deviceId, limit);
+      const result = await fetchTelemetryHistory(deviceId, page, limit, locationId);
 
       return res.status(200).json({
         success: true,
-        count: logs?.length || 0,
-        data: logs,
+        pagination: result.pagination,
+        count: result.data.length,
+        data: result.data,
       });
     }
 

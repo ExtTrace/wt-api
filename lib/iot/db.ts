@@ -274,10 +274,20 @@ export async function recordTelemetry(
 }
 
 /**
- * Fetches recent telemetry & room analytics history along with location information.
+ * Fetches paginated telemetry & room analytics history along with location information.
  */
-export async function fetchTelemetryHistory(deviceId?: string, limit = 20) {
+export async function fetchTelemetryHistory(
+  deviceId?: string,
+  page = 1,
+  limit = 20,
+  locationId?: string
+) {
   if (!supabase) throw new Error('Supabase client is not initialized');
+
+  const safePage = Math.max(1, page);
+  const safeLimit = Math.min(Math.max(1, limit), 100);
+  const from = (safePage - 1) * safeLimit;
+  const to = from + safeLimit - 1;
 
   let query = supabase
     .from('iot_telemetry_logs')
@@ -299,16 +309,33 @@ export async function fetchTelemetryHistory(deviceId?: string, limit = 20) {
         mould_risk,
         room_status
       )
-    `)
+    `, { count: 'exact' })
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .range(from, to);
 
   if (deviceId) {
     query = query.eq('device_id', deviceId);
   }
 
-  const { data, error } = await query;
+  if (locationId) {
+    query = query.eq('location_id', locationId);
+  }
+
+  const { data, count, error } = await query;
   if (error) throw error;
 
-  return data;
+  const total = count || 0;
+  const totalPages = Math.ceil(total / safeLimit);
+
+  return {
+    data: data || [],
+    pagination: {
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages,
+      hasNext: safePage < totalPages,
+      hasPrev: safePage > 1,
+    },
+  };
 }
