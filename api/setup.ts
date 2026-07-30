@@ -17,10 +17,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       command: 'link',
       description: 'Hubungkan bot ke ekstensi (butuh Sync ID)',
     },
-    {
-      command: 'loker',
-      description: 'Kelola dan lacak progress lamaran kerja (Loker)',
-    },
   ];
 
   try {
