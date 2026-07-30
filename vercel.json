@@ -25,11 +25,11 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "https://exttrace.github.io"
+      "destination": "https://clock.dirgafeb.my.id"
     },
     {
       "source": "/assets/:path*",
-      "destination": "https://exttrace.github.io/assets/:path*"
+      "destination": "https://clock.dirgafeb.my.id/assets/:path*"
     }
   ]
 }
