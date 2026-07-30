@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../lib/supabase';
 import { computeAnalytics } from '../../lib/iot/analytics';
-import { verifyDevice, registerDeviceIfMissing, recordTelemetry, fetchTelemetryHistory } from '../../lib/iot/db';
+import { getDeviceWithLocation, registerDeviceIfMissing, recordTelemetry, fetchTelemetryHistory } from '../../lib/iot/db';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // OPTIONS preflight check handled cleanly by Vercel
@@ -31,18 +31,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Missing or invalid "humidity" numeric field' });
       }
 
-      // Check device registration in iot_devices master table
-      const isDeviceValid = await verifyDevice(device_id);
-      if (!isDeviceValid) {
-        // Auto-register device if missing
-        await registerDeviceIfMissing(device_id, `ESP32 Device (${device_id})`, 'Ruangan');
+      // Check device registration & active location_id in iot_devices master table
+      let device = await getDeviceWithLocation(device_id);
+      let locationId = device?.location_id;
+
+      if (!device) {
+        // Auto-register device if missing with default location
+        locationId = await registerDeviceIfMissing(device_id, `ESP32 Device (${device_id})`, 'LOC-BANDUNG-01');
       }
 
       // Compute mathematical & business analytics
       const analytics = computeAnalytics(temperature, humidity);
 
       // Relational Insertion into Supabase Database
-      const result = await recordTelemetry(device_id, temperature, humidity, analytics);
+      const result = await recordTelemetry(device_id, temperature, humidity, analytics, locationId);
 
       return res.status(201).json({
         success: true,
@@ -50,6 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         data: {
           id: result.telemetryId,
           device_id: result.deviceId,
+          location_id: result.locationId,
           temperature: result.temperature,
           humidity: result.humidity,
           analytics: {

@@ -5,6 +5,7 @@ export interface SavedTelemetryPayload {
   telemetryId: string;
   analyticsId: string;
   deviceId: string;
+  locationId: string;
   temperature: number;
   humidity: number;
   analytics: AnalyticsResult;
@@ -12,29 +13,35 @@ export interface SavedTelemetryPayload {
 }
 
 /**
- * Verifies if device_id exists in iot_devices master table.
+ * Fetches device info including active location_id from iot_devices.
  */
-export async function verifyDevice(deviceId: string): Promise<boolean> {
+export async function getDeviceWithLocation(deviceId: string) {
   if (!supabase) throw new Error('Supabase client is not initialized');
 
   const { data, error } = await supabase
     .from('iot_devices')
-    .select('device_id, is_active')
+    .select('device_id, device_name, is_active, location_id')
     .eq('device_id', deviceId)
     .single();
 
   if (error || !data) {
-    return false;
+    return null;
   }
 
-  return data.is_active !== false;
+  return data;
 }
 
 /**
- * Auto-registers a new device if not registered.
+ * Auto-registers a missing device with a default location_id.
  */
-export async function registerDeviceIfMissing(deviceId: string, deviceName?: string, location?: string): Promise<void> {
+export async function registerDeviceIfMissing(
+  deviceId: string,
+  deviceName?: string,
+  locationId = 'LOC-BANDUNG-01'
+): Promise<string> {
   if (!supabase) throw new Error('Supabase client is not initialized');
+
+  const targetLocation = locationId || 'LOC-BANDUNG-01';
 
   await supabase
     .from('iot_devices')
@@ -42,30 +49,36 @@ export async function registerDeviceIfMissing(deviceId: string, deviceName?: str
       {
         device_id: deviceId,
         device_name: deviceName || `Device ${deviceId}`,
-        location: location || 'Ruangan',
+        location_id: targetLocation,
         is_active: true,
       },
       { onConflict: 'device_id' }
     );
+
+  return targetLocation;
 }
 
 /**
- * Records raw telemetry into iot_telemetry_logs and calculated analytics into iot_room_analytics.
+ * Records raw telemetry and location_id into iot_telemetry_logs, and calculated analytics into iot_room_analytics.
  */
 export async function recordTelemetry(
   deviceId: string,
   temperature: number,
   humidity: number,
-  analytics: AnalyticsResult
+  analytics: AnalyticsResult,
+  locationId?: string
 ): Promise<SavedTelemetryPayload> {
   if (!supabase) throw new Error('Supabase client is not initialized');
 
-  // 1. Save raw telemetry log
+  const targetLocationId = locationId || 'LOC-BANDUNG-01';
+
+  // 1. Save raw telemetry log with relational location_id
   const { data: telemetry, error: telemetryError } = await supabase
     .from('iot_telemetry_logs')
     .insert([
       {
         device_id: deviceId,
+        location_id: targetLocationId,
         temperature,
         humidity,
       },
@@ -99,6 +112,7 @@ export async function recordTelemetry(
     telemetryId: telemetry.id,
     analyticsId: roomAnalytics.id,
     deviceId,
+    locationId: targetLocationId,
     temperature,
     humidity,
     analytics,
@@ -107,7 +121,7 @@ export async function recordTelemetry(
 }
 
 /**
- * Fetches recent telemetry & room analytics history.
+ * Fetches recent telemetry & room analytics history along with location information.
  */
 export async function fetchTelemetryHistory(deviceId?: string, limit = 20) {
   if (!supabase) throw new Error('Supabase client is not initialized');
@@ -117,9 +131,15 @@ export async function fetchTelemetryHistory(deviceId?: string, limit = 20) {
     .select(`
       id,
       device_id,
+      location_id,
       temperature,
       humidity,
       created_at,
+      iot_locations (
+        id,
+        location_name,
+        city
+      ),
       iot_room_analytics (
         id,
         dew_point,
