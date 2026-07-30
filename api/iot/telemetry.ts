@@ -31,13 +31,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Missing or invalid "humidity" numeric field' });
       }
 
-      // Check device registration & active location_id in iot_devices master table
+      // Check device registration & is_active status in iot_devices master table
       let device = await getDeviceWithLocation(device_id);
       let locationId = device?.location_id;
 
       if (!device) {
-        // Auto-register device if missing with default location
+        // Auto-register device if missing with default location and active status
         locationId = await registerDeviceIfMissing(device_id, `ESP32 Device (${device_id})`, 'LOC-BANDUNG-01');
+      } else if (device.is_active === false) {
+        // If device is remotely deactivated in Supabase (is_active = false)
+        return res.status(200).json({
+          success: true,
+          is_active: false,
+          message: 'Device is currently deactivated remotely in database',
+        });
       }
 
       // Compute mathematical & business analytics
@@ -48,6 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       return res.status(201).json({
         success: true,
+        is_active: true,
         message: 'Telemetry and analytics recorded successfully',
         data: {
           id: result.telemetryId,

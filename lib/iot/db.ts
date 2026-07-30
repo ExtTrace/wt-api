@@ -32,6 +32,159 @@ export async function getDeviceWithLocation(deviceId: string) {
 }
 
 /**
+ * Fetches all registered IoT devices with location details.
+ */
+export async function getAllDevices() {
+  if (!supabase) throw new Error('Supabase client is not initialized');
+
+  const { data, error } = await supabase
+    .from('iot_devices')
+    .select(`
+      device_id,
+      device_name,
+      is_active,
+      location_id,
+      created_at,
+      iot_locations (
+        id,
+        location_name,
+        city
+      )
+    `)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Toggles or explicitly sets is_active status for an IoT device in iot_devices.
+ */
+export async function toggleDeviceStatus(deviceId: string, targetStatus?: boolean) {
+  if (!supabase) throw new Error('Supabase client is not initialized');
+
+  let newStatus = targetStatus;
+  if (newStatus === undefined) {
+    const existing = await getDeviceWithLocation(deviceId);
+    if (!existing) {
+      throw new Error(`Device ${deviceId} not found`);
+    }
+    newStatus = !existing.is_active;
+  }
+
+  const { data, error } = await supabase
+    .from('iot_devices')
+    .update({ is_active: newStatus })
+    .eq('device_id', deviceId)
+    .select(`
+      device_id,
+      device_name,
+      is_active,
+      location_id,
+      iot_locations (
+        id,
+        location_name,
+        city
+      )
+    `)
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Failed to update device status: ${error?.message || 'Unknown error'}`);
+  }
+
+  return data;
+}
+
+/**
+ * Updates active location_id for a device in iot_devices.
+ */
+export async function updateDeviceLocation(deviceId: string, locationId: string) {
+  if (!supabase) throw new Error('Supabase client is not initialized');
+
+  const { data, error } = await supabase
+    .from('iot_devices')
+    .update({ location_id: locationId })
+    .eq('device_id', deviceId)
+    .select(`
+      device_id,
+      device_name,
+      is_active,
+      location_id,
+      iot_locations (
+        id,
+        location_name,
+        city
+      )
+    `)
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Failed to update device location: ${error?.message || 'Unknown error'}`);
+  }
+
+  return data;
+}
+
+/**
+ * Fetches all registered locations from iot_locations.
+ */
+export async function getAllLocations() {
+  if (!supabase) throw new Error('Supabase client is not initialized');
+
+  const { data, error } = await supabase
+    .from('iot_locations')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Fetches a single location by ID from iot_locations.
+ */
+export async function getLocationById(id: string) {
+  if (!supabase) throw new Error('Supabase client is not initialized');
+
+  const { data, error } = await supabase
+    .from('iot_locations')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !data) return null;
+  return data;
+}
+
+/**
+ * Creates or updates a location record in iot_locations.
+ */
+export async function createOrUpdateLocation(id: string, locationName: string, city?: string) {
+  if (!supabase) throw new Error('Supabase client is not initialized');
+
+  const { data, error } = await supabase
+    .from('iot_locations')
+    .upsert(
+      {
+        id,
+        location_name: locationName,
+        city: city || null,
+        is_active: true,
+      },
+      { onConflict: 'id' }
+    )
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Failed to save location: ${error?.message || 'Unknown error'}`);
+  }
+
+  return data;
+}
+
+/**
  * Auto-registers a missing device with a default location_id.
  */
 export async function registerDeviceIfMissing(
