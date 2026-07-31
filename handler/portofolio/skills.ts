@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../lib/supabase';
+import { setCacheControl } from '../../lib/cache';
 
 interface SkillRecord {
   item_id: string;
@@ -7,7 +8,12 @@ interface SkillRecord {
   skills: any[];
 }
 
-export default async function handleSkills(req: VercelRequest, res: VercelResponse) {
+export default async function handleSkills(
+  req: VercelRequest,
+  res: VercelResponse,
+) {
+  setCacheControl(res, 30);
+
   if (!supabase) {
     return res.status(500).json({ error: 'Supabase is not configured' });
   }
@@ -34,6 +40,8 @@ export default async function handleSkills(req: VercelRequest, res: VercelRespon
     return res.status(200).json(formatted);
   } catch (error: any) {
     console.error('Skills API error:', error);
-    return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    return res
+      .status(500)
+      .json({ error: error.message || 'Internal Server Error' });
   }
 }

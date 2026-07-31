@@ -1,9 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../lib/supabase';
 import { handleCors } from '../../lib/cors';
+import { setCacheControl } from '../../lib/cache';
 
 export default async function handleJobs(req: VercelRequest, res: VercelResponse) {
   handleCors(req, res);
+  setCacheControl(res, 30);
 
   if (!supabase) {
     return res.status(500).json({ error: 'Supabase is not configured' });

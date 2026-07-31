@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../lib/supabase';
+import { setCacheControl } from '../../lib/cache';
 
 interface EducationRecord {
   item_id: string;
@@ -11,7 +12,12 @@ interface EducationRecord {
   description: string;
 }
 
-export default async function handleEducation(req: VercelRequest, res: VercelResponse) {
+export default async function handleEducation(
+  req: VercelRequest,
+  res: VercelResponse,
+) {
+  setCacheControl(res, 30);
+
   if (!supabase) {
     return res.status(500).json({ error: 'Supabase is not configured' });
   }
@@ -42,6 +48,8 @@ export default async function handleEducation(req: VercelRequest, res: VercelRes
     return res.status(200).json(formatted);
   } catch (error: any) {
     console.error('Education API error:', error);
-    return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    return res
+      .status(500)
+      .json({ error: error.message || 'Internal Server Error' });
   }
 }
