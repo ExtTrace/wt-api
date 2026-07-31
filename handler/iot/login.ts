@@ -7,11 +7,7 @@ export default async function handleLogin(
   req: VercelRequest,
   res: VercelResponse,
 ) {
-  handleCors(req, res);
-  // CORS Preflight
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (handleCors(req, res)) return;
 
   if (req.method !== 'POST') {
     return res.status(405).json({
