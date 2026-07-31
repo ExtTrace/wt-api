@@ -4,11 +4,11 @@ import handleDeviceToggle from './device-toggle';
 import handleLocations from './locations';
 import handleTelemetry from './telemetry';
 
-export default function handleIOT(req: VercelRequest, res: VercelResponse) {
-  const slug = Array.isArray(req.query.slug)
-    ? req.query.slug
-    : [req.query.slug];
-
+export default function handleIOT(
+  req: VercelRequest,
+  res: VercelResponse,
+  slug: string[],
+) {
   switch (slug[1]) {
     case 'device-location':
       return handleDeviceLocation(req, res);

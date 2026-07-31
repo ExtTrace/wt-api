@@ -9,11 +9,8 @@ import handleSocials from './socials';
 export default function handlePortofolio(
   req: VercelRequest,
   res: VercelResponse,
+  slug: string[],
 ) {
-  const slug = Array.isArray(req.query.slug)
-    ? req.query.slug
-    : [req.query.slug];
-
   switch (slug[1]) {
     case 'certificate':
       return handleCertificates(req, res);

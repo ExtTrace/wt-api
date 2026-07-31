@@ -3,11 +3,11 @@ import handleCronCheck from './cron-check';
 import handleNotify from './notify';
 import handleSync from './sync';
 
-export default function handleAWT(req: VercelRequest, res: VercelResponse) {
-  const slug = Array.isArray(req.query.slug)
-    ? req.query.slug
-    : [req.query.slug];
-
+export default function handleAWT(
+  req: VercelRequest,
+  res: VercelResponse,
+  slug: string[],
+) {
   switch (slug[1]) {
     case 'cron-check':
       return handleCronCheck(req, res);

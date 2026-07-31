@@ -24,8 +24,8 @@
   ],
   "rewrites": [
     {
-      "source": "/api/webhook",
-      "destination": "/api/bot/webhook"
+      "source": "/api/:path*",
+      "destination": "/api"
     },
     {
       "source": "/",
