@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import bcrypt from 'bcryptjs';
 import { supabase } from '../../lib/supabase';
 import { handleCors } from '../../lib/cors';
 
@@ -64,9 +65,9 @@ export default async function handleLogin(
       });
     }
 
-    // Validasi password (plain text match dengan password_hash)
-    // Catatan: untuk production, gunakan bcrypt atau hashing yang proper
-    if (password !== user.password_hash) {
+    // Validasi password menggunakan bcrypt
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
         message: 'Kredensial tidak valid. Silakan periksa username & password.',
