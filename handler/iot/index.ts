@@ -9,7 +9,9 @@ export default function handleIOT(
   res: VercelResponse,
   slug: string[],
 ) {
-  switch (slug[1]) {
+  const [, endpoint] = slug;
+
+  switch (endpoint) {
     case 'device-location':
       return handleDeviceLocation(req, res);
 

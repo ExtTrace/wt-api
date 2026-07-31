@@ -7,9 +7,11 @@ export default function handleBot(
   res: VercelResponse,
   slug: string[],
 ) {
-  switch (slug[1]) {
+  const [, endpoint] = slug;
+
+  switch (endpoint) {
     case 'setup':
-      return handleSetup(req, res);
+      return handleSetup(req, res, slug);
 
     case 'webhook':
       return handleWebhook(req, res);

@@ -11,7 +11,9 @@ export default function handlePortofolio(
   res: VercelResponse,
   slug: string[],
 ) {
-  switch (slug[1]) {
+  const [, endpoint] = slug;
+
+  switch (endpoint) {
     case 'certificate':
       return handleCertificates(req, res);
 

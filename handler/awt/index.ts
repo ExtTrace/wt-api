@@ -8,7 +8,9 @@ export default function handleAWT(
   res: VercelResponse,
   slug: string[],
 ) {
-  switch (slug[1]) {
+  const [, endpoint] = slug;
+
+  switch (endpoint) {
     case 'cron-check':
       return handleCronCheck(req, res);
 

@@ -7,7 +7,9 @@ export default function handleJob(
   res: VercelResponse,
   slug: string[],
 ) {
-  switch (slug[1]) {
+  const [, endpoint] = slug;
+
+  switch (endpoint) {
     case 'job-stats':
       return handleJobStats(req, res);
 
