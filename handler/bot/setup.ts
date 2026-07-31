@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { setBotCommands, setWebhook } from '../../lib/telegram';
 import { canAccessLoker } from '../../lib/permission';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handleSetup(req: VercelRequest, res: VercelResponse) {
   const isAllowed = await canAccessLoker(req.query.chatId as string);
 
   const commands = [

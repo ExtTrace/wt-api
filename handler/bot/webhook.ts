@@ -14,7 +14,7 @@ import {
 } from '../../lib/commands';
 import { canAccessLoker } from '../../lib/permission';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handleWebhook(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).send('Method Not Allowed');
   }

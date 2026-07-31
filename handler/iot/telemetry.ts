@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { computeAnalytics } from '../../lib/iot/analytics';
 import { getDeviceWithLocation, registerDeviceIfMissing, recordTelemetry, fetchTelemetryHistory } from '../../lib/iot/db';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handleTelemetry(req: VercelRequest, res: VercelResponse) {
   // OPTIONS preflight check handled cleanly by Vercel
   if (req.method === 'OPTIONS') {
     return res.status(200).end();

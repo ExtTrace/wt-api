@@ -4,7 +4,7 @@ import { sendMessage } from '../../lib/telegram';
 import { sendDiscord } from '../../lib/discord';
 import { fetchUpcomingEpisode } from '../../lib/anilist';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handleCronCheck(req: VercelRequest, res: VercelResponse) {
   if (!supabase) {
     return res.status(500).json({ error: 'Supabase is not configured' });
   }

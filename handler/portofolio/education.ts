@@ -11,7 +11,7 @@ interface EducationRecord {
   description: string;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handleEducation(req: VercelRequest, res: VercelResponse) {
   if (!supabase) {
     return res.status(500).json({ error: 'Supabase is not configured' });
   }
