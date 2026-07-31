@@ -2,9 +2,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../lib/supabase';
 import { computeAnalytics } from '../../lib/iot/analytics';
 import { getDeviceWithLocation, registerDeviceIfMissing, recordTelemetry, fetchTelemetryHistory } from '../../lib/iot/db';
+import { handleCors } from '../../lib/cors';
 
 export default async function handleTelemetry(req: VercelRequest, res: VercelResponse) {
-  // OPTIONS preflight check handled cleanly by Vercel
+  handleCors(req, res);
+
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }

@@ -4,6 +4,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'https://febriand.vercel.app',
   'https://dirgafeb.my.id',
+  'https://dash-iot.dirgafeb.my.id',
 ];
 
 export async function handleCors(req: VercelRequest, res: VercelResponse) {
@@ -12,11 +13,15 @@ export async function handleCors(req: VercelRequest, res: VercelResponse) {
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   } else {
-    res.setHeader('Access-Control-Allow-Origin', 'https://dirgafeb.my.id');
+    res.setHeader(
+      'Access-Control-Allow-Origin',
+      'https://dirgafeb.my.id',
+      'https://dash-iot.dirgafeb.my.id',
+    );
   }
 
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST,PATCH,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version',
