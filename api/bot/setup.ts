@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { setBotCommands, setWebhook } from '../lib/telegram';
-import { canAccessLoker } from '../lib/permission';
+import { setBotCommands, setWebhook } from '../../lib/telegram';
+import { canAccessLoker } from '../../lib/permission';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const isAllowed = await canAccessLoker(req.query.chatId as string);
@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 2. Automatically register / update webhook to Telegram using the current request host
     const host = req.headers.host;
     const proto = req.headers['x-forwarded-proto'] || 'https';
-    const webhookUrl = `${proto}://${host}/api/webhook`;
+    const webhookUrl = `${proto}://${host}/api/bot/webhook`;
     await setWebhook(webhookUrl);
 
     return res.status(200).json({

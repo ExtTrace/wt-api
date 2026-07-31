@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '../lib/supabase';
-import { sendMessage } from '../lib/telegram';
+import { supabase } from '../../lib/supabase';
+import { sendMessage } from '../../lib/telegram';
 import {
   handleStart,
   handleLinkStart,
@@ -11,8 +11,8 @@ import {
   sendLokerMenu,
   handleLokerCallbackQuery,
   handleLokerConversationStep,
-} from '../lib/commands';
-import { canAccessLoker } from '../lib/permission';
+} from '../../lib/commands';
+import { canAccessLoker } from '../../lib/permission';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

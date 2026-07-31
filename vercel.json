@@ -18,11 +18,15 @@
   ],
   "crons": [
     {
-      "path": "/api/cron-check",
+      "path": "/api/awt/cron-check",
       "schedule": "0 5 * * *"
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/webhook",
+      "destination": "/api/bot/webhook"
+    },
     {
       "source": "/",
       "destination": "https://clock.dirgafeb.my.id"

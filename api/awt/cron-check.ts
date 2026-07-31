@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '../lib/supabase';
-import { sendMessage } from '../lib/telegram';
-import { sendDiscord } from '../lib/discord';
-import { fetchUpcomingEpisode } from '../lib/anilist';
+import { supabase } from '../../lib/supabase';
+import { sendMessage } from '../../lib/telegram';
+import { sendDiscord } from '../../lib/discord';
+import { fetchUpcomingEpisode } from '../../lib/anilist';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!supabase) {

@@ -5,9 +5,16 @@ export default function handler(
   response: VercelResponse,
 ) {
   return response.status(200).json({
-    name: 'Anime Watch Tracker API',
+    name: 'AWT Central API Gateway',
     status: 'online',
     version: '1.0.0',
-    message: 'Backend is up and running!'
+    services: [
+      'anime-watch-tracker',
+      'iot-monitoring',
+      'job-tracker',
+      'portfolio'
+    ],
+    timestamp: new Date().toISOString(),
+    message: 'AWT Backend Services are up and running smoothly!'
   });
 }
