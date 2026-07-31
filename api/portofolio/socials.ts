@@ -1,6 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../lib/supabase';
 
+interface SocialRecord {
+  platform: string;
+  url: string;
+  label: string;
+  icon_name: string;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!supabase) {
     return res.status(500).json({ error: 'Supabase is not configured' });
@@ -17,7 +24,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (error) throw error;
 
-    const formatted = (data || []).map((s) => ({
+    const records = (data || []) as unknown as SocialRecord[];
+
+    const formatted = records.map((s: SocialRecord) => ({
       platform: s.platform,
       url: s.url,
       label: s.label,

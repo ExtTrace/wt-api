@@ -1,6 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../lib/supabase';
 
+interface EducationRecord {
+  item_id: string;
+  institution: string;
+  degree: string;
+  field_of_study: string;
+  start_date: string;
+  end_date: string;
+  description: string;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!supabase) {
     return res.status(500).json({ error: 'Supabase is not configured' });
@@ -17,7 +27,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (error) throw error;
 
-    const formatted = (data || []).map((e) => ({
+    const records = (data || []) as unknown as EducationRecord[];
+
+    const formatted = records.map((e: EducationRecord) => ({
       id: e.item_id,
       institution: e.institution,
       degree: e.degree,
