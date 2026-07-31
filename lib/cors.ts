@@ -15,8 +15,7 @@ export async function handleCors(req: VercelRequest, res: VercelResponse) {
   } else {
     res.setHeader(
       'Access-Control-Allow-Origin',
-      'https://dirgafeb.my.id',
-      'https://dash-iot.dirgafeb.my.id',
+      'https://dirgafeb.my.id https://dash-iot.dirgafeb.my.id',
     );
   }
 

@@ -3,6 +3,7 @@ import handleDeviceLocation from './device-location';
 import handleDeviceToggle from './device-toggle';
 import handleLocations from './locations';
 import handleTelemetry from './telemetry';
+import handleLogin from './login';
 
 export default function handleIOT(
   req: VercelRequest,
@@ -20,6 +21,9 @@ export default function handleIOT(
 
     case 'locations':
       return handleLocations(req, res);
+
+    case 'login':
+      return handleLogin(req, res);
 
     case 'telemetry':
       return handleTelemetry(req, res);
