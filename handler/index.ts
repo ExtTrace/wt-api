@@ -5,7 +5,7 @@ import handleIOT from './iot';
 import handleJob from './job';
 import handlePortofolio from './portofolio';
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
+export default function handleRequest(req: VercelRequest, res: VercelResponse) {
   const slug = Array.isArray(req.query.slug)
     ? req.query.slug
     : req.query.slug
