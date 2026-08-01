@@ -1,10 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sendMessage } from '../../lib/telegram';
-import { handleCors } from '../../lib/cors';
 
 export default async function handleNotify(req: VercelRequest, res: VercelResponse) {
-  handleCors(req, res);
-
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
