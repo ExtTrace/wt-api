@@ -129,12 +129,13 @@ export async function updateDeviceLocation(deviceId: string, locationId: string)
 /**
  * Fetches all registered locations from iot_locations.
  */
-export async function getAllLocations() {
+export async function getAllLocations(isActive: boolean = true) {
   if (!supabase) throw new Error('Supabase client is not initialized');
 
   const { data, error } = await supabase
     .from('iot_locations')
     .select('*')
+    .eq('is_active', isActive)
     .order('created_at', { ascending: true });
 
   if (error) throw error;
