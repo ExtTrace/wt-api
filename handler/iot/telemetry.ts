@@ -1,12 +1,18 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../lib/supabase';
 import { computeAnalytics } from '../../lib/iot/analytics';
-import { getDeviceWithLocation, registerDeviceIfMissing, recordTelemetry, fetchTelemetryHistory } from '../../lib/iot/db';
+import {
+  getDeviceWithLocation,
+  registerDeviceIfMissing,
+  recordTelemetry,
+  fetchTelemetryHistory,
+} from '../../lib/iot/db';
 import { handleCors } from '../../lib/cors';
 
-export default async function handleTelemetry(req: VercelRequest, res: VercelResponse) {
-  handleCors(req, res);
-
+export default async function handleTelemetry(
+  req: VercelRequest,
+  res: VercelResponse,
+) {
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -22,15 +28,21 @@ export default async function handleTelemetry(req: VercelRequest, res: VercelRes
 
       // Input Validation
       if (!device_id || typeof device_id !== 'string') {
-        return res.status(400).json({ error: 'Missing or invalid "device_id" string field' });
+        return res
+          .status(400)
+          .json({ error: 'Missing or invalid "device_id" string field' });
       }
 
       if (typeof temperature !== 'number' || isNaN(temperature)) {
-        return res.status(400).json({ error: 'Missing or invalid "temperature" numeric field' });
+        return res
+          .status(400)
+          .json({ error: 'Missing or invalid "temperature" numeric field' });
       }
 
       if (typeof humidity !== 'number' || isNaN(humidity)) {
-        return res.status(400).json({ error: 'Missing or invalid "humidity" numeric field' });
+        return res
+          .status(400)
+          .json({ error: 'Missing or invalid "humidity" numeric field' });
       }
 
       // Check device registration & is_active status in iot_devices master table
@@ -39,7 +51,11 @@ export default async function handleTelemetry(req: VercelRequest, res: VercelRes
 
       if (!device) {
         // Auto-register device if missing with default location and active status
-        locationId = await registerDeviceIfMissing(device_id, `ESP32 Device (${device_id})`, 'LOC-BANDUNG-01');
+        locationId = await registerDeviceIfMissing(
+          device_id,
+          `ESP32 Device (${device_id})`,
+          'LOC-BANDUNG-01',
+        );
       } else if (device.is_active === false) {
         // If device is remotely deactivated in Supabase (is_active = false)
         return res.status(200).json({
@@ -53,7 +69,13 @@ export default async function handleTelemetry(req: VercelRequest, res: VercelRes
       const analytics = computeAnalytics(temperature, humidity);
 
       // Relational Insertion into Supabase Database
-      const result = await recordTelemetry(device_id, temperature, humidity, analytics, locationId);
+      const result = await recordTelemetry(
+        device_id,
+        temperature,
+        humidity,
+        analytics,
+        locationId,
+      );
 
       return res.status(201).json({
         success: true,
@@ -77,12 +99,21 @@ export default async function handleTelemetry(req: VercelRequest, res: VercelRes
 
     // ─── 2. GET /api/iot/telemetry (Fetch Paginated History Logs) ─────
     if (req.method === 'GET') {
+      handleCors(req, res);
+
       const deviceId = req.query.device_id as string | undefined;
       const locationId = req.query.location_id as string | undefined;
       const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+      const limit = req.query.limit
+        ? parseInt(req.query.limit as string, 10)
+        : 20;
 
-      const result = await fetchTelemetryHistory(deviceId, page, limit, locationId);
+      const result = await fetchTelemetryHistory(
+        deviceId,
+        page,
+        limit,
+        locationId,
+      );
 
       return res.status(200).json({
         success: true,
