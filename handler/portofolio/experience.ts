@@ -14,6 +14,7 @@ interface ExperienceRecord {
   description: string;
   achievements: string[];
   tech_stack: string[];
+  parent_id: string | null;
 }
 
 export default async function handleExperience(
@@ -27,13 +28,14 @@ export default async function handleExperience(
   }
 
   const lang = (req.query.lang as string) || 'id';
+  const ascending = (req.query.ascending as string) !== 'false';
 
   try {
     const { data, error } = await supabase
       .from('portfolio_experiences')
       .select('*')
       .eq('lang', lang)
-      .order('order_index', { ascending: true });
+      .order('order_index', { ascending });
 
     if (error) throw error;
 
@@ -51,6 +53,7 @@ export default async function handleExperience(
       description: e.description,
       achievements: e.achievements || [],
       techStack: e.tech_stack || [],
+      parentId: e.parent_id,
     }));
 
     return res.status(200).json(formatted);
