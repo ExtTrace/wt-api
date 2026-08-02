@@ -117,9 +117,11 @@ export default async function handleTelemetry(
 
       return res.status(200).json({
         success: true,
-        pagination: result.pagination,
-        count: result.data.length,
         data: result.data,
+        meta: {
+          ...result.meta,
+          count: result.data.length,
+        },
       });
     }
 

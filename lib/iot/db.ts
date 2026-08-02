@@ -39,7 +39,8 @@ export async function getAllDevices() {
 
   const { data, error } = await supabase
     .from('iot_devices')
-    .select(`
+    .select(
+      `
       device_id,
       device_name,
       is_active,
@@ -50,7 +51,8 @@ export async function getAllDevices() {
         location_name,
         city
       )
-    `)
+    `,
+    )
     .order('created_at', { ascending: true });
 
   if (error) throw error;
@@ -60,7 +62,10 @@ export async function getAllDevices() {
 /**
  * Toggles or explicitly sets is_active status for an IoT device in iot_devices.
  */
-export async function toggleDeviceStatus(deviceId: string, targetStatus?: boolean) {
+export async function toggleDeviceStatus(
+  deviceId: string,
+  targetStatus?: boolean,
+) {
   if (!supabase) throw new Error('Supabase client is not initialized');
 
   let newStatus = targetStatus;
@@ -76,7 +81,8 @@ export async function toggleDeviceStatus(deviceId: string, targetStatus?: boolea
     .from('iot_devices')
     .update({ is_active: newStatus })
     .eq('device_id', deviceId)
-    .select(`
+    .select(
+      `
       device_id,
       device_name,
       is_active,
@@ -86,11 +92,14 @@ export async function toggleDeviceStatus(deviceId: string, targetStatus?: boolea
         location_name,
         city
       )
-    `)
+    `,
+    )
     .single();
 
   if (error || !data) {
-    throw new Error(`Failed to update device status: ${error?.message || 'Unknown error'}`);
+    throw new Error(
+      `Failed to update device status: ${error?.message || 'Unknown error'}`,
+    );
   }
 
   return data;
@@ -99,14 +108,18 @@ export async function toggleDeviceStatus(deviceId: string, targetStatus?: boolea
 /**
  * Updates active location_id for a device in iot_devices.
  */
-export async function updateDeviceLocation(deviceId: string, locationId: string) {
+export async function updateDeviceLocation(
+  deviceId: string,
+  locationId: string,
+) {
   if (!supabase) throw new Error('Supabase client is not initialized');
 
   const { data, error } = await supabase
     .from('iot_devices')
     .update({ location_id: locationId })
     .eq('device_id', deviceId)
-    .select(`
+    .select(
+      `
       device_id,
       device_name,
       is_active,
@@ -116,11 +129,14 @@ export async function updateDeviceLocation(deviceId: string, locationId: string)
         location_name,
         city
       )
-    `)
+    `,
+    )
     .single();
 
   if (error || !data) {
-    throw new Error(`Failed to update device location: ${error?.message || 'Unknown error'}`);
+    throw new Error(
+      `Failed to update device location: ${error?.message || 'Unknown error'}`,
+    );
   }
 
   return data;
@@ -161,7 +177,11 @@ export async function getLocationById(id: string) {
 /**
  * Creates or updates a location record in iot_locations.
  */
-export async function createOrUpdateLocation(id: string, locationName: string, city?: string) {
+export async function createOrUpdateLocation(
+  id: string,
+  locationName: string,
+  city?: string,
+) {
   if (!supabase) throw new Error('Supabase client is not initialized');
 
   const { data, error } = await supabase
@@ -173,13 +193,15 @@ export async function createOrUpdateLocation(id: string, locationName: string, c
         city: city || null,
         is_active: true,
       },
-      { onConflict: 'id' }
+      { onConflict: 'id' },
     )
     .select('*')
     .single();
 
   if (error || !data) {
-    throw new Error(`Failed to save location: ${error?.message || 'Unknown error'}`);
+    throw new Error(
+      `Failed to save location: ${error?.message || 'Unknown error'}`,
+    );
   }
 
   return data;
@@ -191,23 +213,21 @@ export async function createOrUpdateLocation(id: string, locationName: string, c
 export async function registerDeviceIfMissing(
   deviceId: string,
   deviceName?: string,
-  locationId = 'LOC-BANDUNG-01'
+  locationId = 'LOC-BANDUNG-01',
 ): Promise<string> {
   if (!supabase) throw new Error('Supabase client is not initialized');
 
   const targetLocation = locationId || 'LOC-BANDUNG-01';
 
-  await supabase
-    .from('iot_devices')
-    .upsert(
-      {
-        device_id: deviceId,
-        device_name: deviceName || `Device ${deviceId}`,
-        location_id: targetLocation,
-        is_active: true,
-      },
-      { onConflict: 'device_id' }
-    );
+  await supabase.from('iot_devices').upsert(
+    {
+      device_id: deviceId,
+      device_name: deviceName || `Device ${deviceId}`,
+      location_id: targetLocation,
+      is_active: true,
+    },
+    { onConflict: 'device_id' },
+  );
 
   return targetLocation;
 }
@@ -220,7 +240,7 @@ export async function recordTelemetry(
   temperature: number,
   humidity: number,
   analytics: AnalyticsResult,
-  locationId?: string
+  locationId?: string,
 ): Promise<SavedTelemetryPayload> {
   if (!supabase) throw new Error('Supabase client is not initialized');
 
@@ -241,7 +261,9 @@ export async function recordTelemetry(
     .single();
 
   if (telemetryError || !telemetry) {
-    throw new Error(`Failed to insert telemetry log: ${telemetryError?.message || 'Unknown error'}`);
+    throw new Error(
+      `Failed to insert telemetry log: ${telemetryError?.message || 'Unknown error'}`,
+    );
   }
 
   // 2. Save calculated analytics
@@ -259,7 +281,9 @@ export async function recordTelemetry(
     .single();
 
   if (analyticsError || !roomAnalytics) {
-    throw new Error(`Failed to insert room analytics: ${analyticsError?.message || 'Unknown error'}`);
+    throw new Error(
+      `Failed to insert room analytics: ${analyticsError?.message || 'Unknown error'}`,
+    );
   }
 
   return {
@@ -281,7 +305,7 @@ export async function fetchTelemetryHistory(
   deviceId?: string,
   page = 1,
   limit = 20,
-  locationId?: string
+  locationId?: string,
 ) {
   if (!supabase) throw new Error('Supabase client is not initialized');
 
@@ -292,7 +316,8 @@ export async function fetchTelemetryHistory(
 
   let query = supabase
     .from('iot_telemetry_logs')
-    .select(`
+    .select(
+      `
       id,
       device_id,
       location_id,
@@ -310,7 +335,9 @@ export async function fetchTelemetryHistory(
         mould_risk,
         room_status
       )
-    `, { count: 'exact' })
+    `,
+      { count: 'exact' },
+    )
     .order('created_at', { ascending: false })
     .range(from, to);
 
@@ -322,7 +349,12 @@ export async function fetchTelemetryHistory(
     query = query.eq('location_id', locationId);
   }
 
-  const { data, count, error } = await query;
+  const [{ data, count, error }, oldest, latest] = await Promise.all([
+    query,
+    getMetadataDateRange(deviceId, locationId, true),
+    getMetadataDateRange(deviceId, locationId, false),
+  ]);
+
   if (error) throw error;
 
   const total = count || 0;
@@ -330,13 +362,45 @@ export async function fetchTelemetryHistory(
 
   return {
     data: data || [],
-    pagination: {
-      total,
-      page: safePage,
-      limit: safeLimit,
-      totalPages,
-      hasNext: safePage < totalPages,
-      hasPrev: safePage > 1,
+    meta: {
+      pagination: {
+        total,
+        page: safePage,
+        limit: safeLimit,
+        totalPages,
+        hasNext: safePage < totalPages,
+        hasPrev: safePage > 1,
+      },
+      dateRange: {
+        oldest: oldest,
+        latest: latest,
+      },
     },
   };
+}
+
+async function getMetadataDateRange(
+  deviceId?: string,
+  locationId?: string,
+  ascending = true,
+) {
+  if (!supabase) throw new Error('Supabase client is not initialized');
+
+  const query = supabase
+    .from('iot_telemetry_logs')
+    .select('created_at')
+    .order('created_at', { ascending })
+    .limit(1);
+  if (deviceId) {
+    query.eq('device_id', deviceId);
+  }
+
+  if (locationId && locationId.toUpperCase() !== 'ALL') {
+    query.eq('location_id', locationId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+
+  return data ? data.created_at : null;
 }
