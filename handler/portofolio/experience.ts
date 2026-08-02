@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { setCacheControl } from '../../lib/cache';
 
 interface ExperienceRecord {
+  id: string;
   item_id: string;
   role: string;
   company: string;
@@ -42,7 +43,8 @@ export default async function handleExperience(
     const records = (data || []) as unknown as ExperienceRecord[];
 
     const formatted = records.map((e: ExperienceRecord) => ({
-      id: e.item_id,
+      id: e.id,
+      item_id: e.item_id,
       role: e.role,
       company: e.company,
       companyUrl: e.company_url || '',
