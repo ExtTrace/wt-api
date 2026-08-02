@@ -56,6 +56,9 @@ export function determineRoomStatus(temp: number, hum: number): string {
   if (temp >= 30.0) {
     return 'PANAS / GERAH';
   }
+  if (temp < 20.0) {
+    return 'DINGIN';
+  }
   if (temp >= 22.0 && temp <= 28.0 && hum >= 40.0 && hum <= 65.0) {
     return 'IDEAL / NYAMAN';
   }
