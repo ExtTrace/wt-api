@@ -31,13 +31,14 @@ export default async function handleProjects(
   }
 
   const lang = (req.query.lang as string) || 'id';
+  const ascending = (req.query.ascending as string) !== 'false';
 
   try {
     const { data, error } = await supabase
       .from('portfolio_projects')
       .select('*')
       .eq('lang', lang)
-      .order('order_index', { ascending: true });
+      .order('order_index', { ascending });
 
     if (error) throw error;
 
