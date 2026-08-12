@@ -103,6 +103,8 @@ export default async function handleTelemetry(
 
       const deviceId = req.query.device_id as string | undefined;
       const locationId = req.query.location_id as string | undefined;
+      const startDate = req.query.start_date as string | undefined;
+      const endDate = req.query.end_date as string | undefined;
       const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
       const limit = req.query.limit
         ? parseInt(req.query.limit as string, 10)
@@ -113,6 +115,8 @@ export default async function handleTelemetry(
         page,
         limit,
         locationId,
+        startDate,
+        endDate,
       );
 
       return res.status(200).json({

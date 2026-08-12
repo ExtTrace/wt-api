@@ -306,6 +306,8 @@ export async function fetchTelemetryHistory(
   page = 1,
   limit = 20,
   locationId?: string,
+  startDate?: string,
+  endDate?: string,
 ) {
   if (!supabase) throw new Error('Supabase client is not initialized');
 
@@ -338,8 +340,7 @@ export async function fetchTelemetryHistory(
     `,
       { count: 'exact' },
     )
-    .order('created_at', { ascending: false })
-    .range(from, to);
+    .order('created_at', { ascending: false });
 
   if (deviceId) {
     query = query.eq('device_id', deviceId);
@@ -348,6 +349,22 @@ export async function fetchTelemetryHistory(
   if (locationId && locationId.toUpperCase() !== 'ALL') {
     query = query.eq('location_id', locationId);
   }
+
+  if (startDate) {
+    const startIso = startDate.includes('T')
+      ? startDate
+      : `${startDate}T00:00:00.000Z`;
+    query = query.gte('created_at', startIso);
+  }
+
+  if (endDate) {
+    const endIso = endDate.includes('T')
+      ? endDate
+      : `${endDate}T23:59:59.999Z`;
+    query = query.lte('created_at', endIso);
+  }
+
+  query = query.range(from, to);
 
   const [{ data, count, error }, oldest, latest] = await Promise.all([
     query,
