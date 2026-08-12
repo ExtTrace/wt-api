@@ -366,10 +366,11 @@ export async function fetchTelemetryHistory(
 
   query = query.range(from, to);
 
-  const [{ data, count, error }, oldest, latest] = await Promise.all([
+  const [{ data, count, error }, oldest, latest, globalTotal] = await Promise.all([
     query,
     getMetadataDateRange(deviceId, locationId, true),
     getMetadataDateRange(deviceId, locationId, false),
+    getGlobalTotalCount(deviceId, locationId),
   ]);
 
   if (error) throw error;
@@ -382,6 +383,7 @@ export async function fetchTelemetryHistory(
     meta: {
       pagination: {
         total,
+        globalTotal: globalTotal || total,
         page: safePage,
         limit: safeLimit,
         totalPages,
@@ -394,6 +396,30 @@ export async function fetchTelemetryHistory(
       },
     },
   };
+}
+
+async function getGlobalTotalCount(
+  deviceId?: string,
+  locationId?: string,
+) {
+  if (!supabase) throw new Error('Supabase client is not initialized');
+
+  const query = supabase
+    .from('iot_telemetry_logs')
+    .select('*', { count: 'exact', head: true });
+
+  if (deviceId) {
+    query.eq('device_id', deviceId);
+  }
+
+  if (locationId && locationId.toUpperCase() !== 'ALL') {
+    query.eq('location_id', locationId);
+  }
+
+  const { count, error } = await query;
+  if (error) throw error;
+
+  return count || 0;
 }
 
 async function getMetadataDateRange(
