@@ -351,16 +351,24 @@ export async function fetchTelemetryHistory(
   }
 
   if (startDate) {
-    const startIso = startDate.includes('T')
-      ? startDate
-      : `${startDate}T00:00:00.000Z`;
+    let startIso = startDate;
+    if (!startDate.includes('T')) {
+      // Offset by -12h to safely include local timezone bounds (e.g. WIB UTC+7)
+      const d = new Date(`${startDate}T00:00:00.000Z`);
+      d.setHours(d.getHours() - 12);
+      startIso = d.toISOString();
+    }
     query = query.gte('created_at', startIso);
   }
 
   if (endDate) {
-    const endIso = endDate.includes('T')
-      ? endDate
-      : `${endDate}T23:59:59.999Z`;
+    let endIso = endDate;
+    if (!endDate.includes('T')) {
+      // Offset by +12h to safely include local timezone bounds
+      const d = new Date(`${endDate}T23:59:59.999Z`);
+      d.setHours(d.getHours() + 12);
+      endIso = d.toISOString();
+    }
     query = query.lte('created_at', endIso);
   }
 
