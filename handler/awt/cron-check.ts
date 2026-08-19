@@ -37,6 +37,7 @@ export default async function handleCronCheck(req: VercelRequest, res: VercelRes
       let updated = false;
       const newlyReleased = [];
       const upcomingReminders = [];
+      const pendingUnwatched = [];
 
       for (const item of items) {
         if (item.isArchived) continue;
@@ -108,6 +109,29 @@ export default async function handleCronCheck(req: VercelRequest, res: VercelRes
             console.error(`Error querying AniList for ${item.title}:`, err);
           }
         }
+
+        // Collect unwatched episodes not newly released today
+        const userWatchedEpMatch = item.episode?.match(/\d+/);
+        const userWatchedEpNum = userWatchedEpMatch ? parseInt(userWatchedEpMatch[0], 10) : 0;
+        let isUnwatched = item.hasNewEpisode === true;
+
+        if (item.lastNotifiedEpisode) {
+          const notifiedEpMatch = item.lastNotifiedEpisode.match(/\d+/);
+          const notifiedEpNum = notifiedEpMatch ? parseInt(notifiedEpMatch[0], 10) : 0;
+          if (notifiedEpNum > userWatchedEpNum) {
+            isUnwatched = true;
+          }
+        }
+
+        const isNewlyReleasedToday = newlyReleased.some((r) => r.title === item.title);
+        if (isUnwatched && !isNewlyReleasedToday) {
+          const epDisplay = item.lastNotifiedEpisode || (userWatchedEpNum > 0 ? `Episode ${userWatchedEpNum + 1}` : 'Episode Baru');
+          pendingUnwatched.push({
+            title: item.title,
+            episode: epDisplay,
+            link: item.url,
+          });
+        }
       }
 
       let fullMessage = '';
@@ -124,9 +148,16 @@ export default async function handleCronCheck(req: VercelRequest, res: VercelRes
       }
 
       if (newlyReleased.length > 0) {
-        fullMessage += `🎬 <b>${newlyReleased.length} Anime Sedang Tayang!</b>\n\n`;
+        fullMessage += `🎬 <b>${newlyReleased.length} Anime Rilis Hari Ini!</b>\n\n`;
         for (const release of newlyReleased) {
           fullMessage += `<b>${release.title}</b>\n${release.episode} - <a href="${release.link}">Tonton Sekarang</a>\n\n`;
+        }
+      }
+
+      if (pendingUnwatched.length > 0) {
+        fullMessage += `📌 <b>${pendingUnwatched.length} Anime Belum Sempat Ditonton:</b>\n\n`;
+        for (const pending of pendingUnwatched) {
+          fullMessage += `<b>${pending.title}</b>\n${pending.episode} - <a href="${pending.link}">Tonton Sekarang</a>\n\n`;
         }
       }
 
