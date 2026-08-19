@@ -17,7 +17,7 @@ export default async function handleJobStats(
   try {
     const { data: apps, error } = await supabase
       .from('job_applications')
-      .select('status');
+      .select('status, updated_at');
 
     if (error) throw error;
 
@@ -29,8 +29,15 @@ export default async function handleJobStats(
       Offering: 0,
       Accepted: 0,
       Rejected: 0,
+      Today: 0,
       Total: 0,
     };
+
+    const getWIBDateStr = (dateObj: Date) => {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(dateObj);
+    };
+
+    const todayWIBStr = getWIBDateStr(new Date());
 
     if (apps) {
       for (const app of apps) {
@@ -42,6 +49,13 @@ export default async function handleJobStats(
           stats[status] = (stats[status] || 0) + 1;
         }
         stats['Total']++;
+
+        if (app.updated_at) {
+          const appDateWIBStr = getWIBDateStr(new Date(app.updated_at));
+          if (appDateWIBStr === todayWIBStr) {
+            stats['Today']++;
+          }
+        }
       }
     }
 
