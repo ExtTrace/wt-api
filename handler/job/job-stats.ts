@@ -17,7 +17,7 @@ export default async function handleJobStats(
   try {
     const { data: apps, error } = await supabase
       .from('job_applications')
-      .select('status, updated_at');
+      .select('status, created_at, updated_at');
 
     if (error) throw error;
 
@@ -50,8 +50,9 @@ export default async function handleJobStats(
         }
         stats['Total']++;
 
-        if (app.updated_at) {
-          const appDateWIBStr = getWIBDateStr(new Date(app.updated_at));
+        const targetDate = app.created_at || app.updated_at;
+        if (targetDate) {
+          const appDateWIBStr = getWIBDateStr(new Date(targetDate));
           if (appDateWIBStr === todayWIBStr) {
             stats['Today']++;
           }
