@@ -110,25 +110,27 @@ export default async function handleCronCheck(req: VercelRequest, res: VercelRes
           }
         }
 
-        // Collect unwatched episodes not newly released today
-        const userWatchedEpMatch = item.episode?.match(/\d+/);
-        const userWatchedEpNum = userWatchedEpMatch ? parseInt(userWatchedEpMatch[0], 10) : 0;
-        let isUnwatched = item.hasNewEpisode === true;
+        // Collect unwatched episodes that have ALREADY AIRED but user hasn't watched yet
+        let isUnwatched = false;
+        let unwatchedEpDisplay = '';
 
         if (item.lastNotifiedEpisode) {
           const notifiedEpMatch = item.lastNotifiedEpisode.match(/\d+/);
           const notifiedEpNum = notifiedEpMatch ? parseInt(notifiedEpMatch[0], 10) : 0;
+          const userWatchedEpMatch = item.episode?.match(/\d+/);
+          const userWatchedEpNum = userWatchedEpMatch ? parseInt(userWatchedEpMatch[0], 10) : 0;
+
           if (notifiedEpNum > userWatchedEpNum) {
             isUnwatched = true;
+            unwatchedEpDisplay = item.lastNotifiedEpisode;
           }
         }
 
         const isNewlyReleasedToday = newlyReleased.some((r) => r.title === item.title);
         if (isUnwatched && !isNewlyReleasedToday) {
-          const epDisplay = item.lastNotifiedEpisode || (userWatchedEpNum > 0 ? `Episode ${userWatchedEpNum + 1}` : 'Episode Baru');
           pendingUnwatched.push({
             title: item.title,
-            episode: epDisplay,
+            episode: unwatchedEpDisplay,
             link: item.url,
           });
         }
