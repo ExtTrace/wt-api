@@ -8,10 +8,13 @@ export async function sendLokerMenu(chatId: string, messageId?: number) {
     inline_keyboard: [
       [
         { text: '➕ Tambah Lamaran', callback_data: 'loker:add' },
-        { text: '📋 Lihat Semua', callback_data: 'loker:list' }
+        { text: '🔍 Cari Lamaran', callback_data: 'loker:search' }
       ],
       [
-        { text: '🔄 Update Status', callback_data: 'loker:update' },
+        { text: '📋 Lihat Semua', callback_data: 'loker:list' },
+        { text: '🔄 Update Status', callback_data: 'loker:update' }
+      ],
+      [
         { text: '❌ Hapus Lamaran', callback_data: 'loker:delete' }
       ]
     ]
@@ -34,6 +37,21 @@ export async function handleLokerCallbackQuery(chatId: string, callbackQuery: an
   switch (callbackData) {
     case 'loker:menu':
       await sendLokerMenu(chatId, messageId);
+      return;
+
+    case 'loker:search':
+      await supabase
+        .from('bot_user_sessions')
+        .upsert({ chat_id: chatId, step: 'WAITING_SEARCH', draft_data: {} }, { onConflict: 'chat_id' });
+
+      await editMessageText(
+        chatId,
+        messageId,
+        `🔍 <b>Pencarian Lamaran Kerja</b>\n\nSilakan ketik nama <b>Perusahaan</b> atau <b>Posisi Pekerjaan</b> yang ingin Anda cari:`,
+        {
+          inline_keyboard: [[{ text: '🚫 Batal', callback_data: 'loker:cancel' }]]
+        }
+      );
       return;
 
     case 'loker:add':
@@ -422,10 +440,66 @@ async function getPlatformKeyboard(draftId: string = 'draft') {
   return inlineKeyboard;
 }
 
+export async function handleLokerSearch(chatId: string, queryText: string): Promise<void> {
+  if (!supabase) return;
+  const q = queryText.trim();
+  if (!q) return;
+
+  const { data: apps } = await supabase
+    .from('job_applications')
+    .select('id, company, position, status, updated_at, job_platforms(name)')
+    .eq('chat_id', chatId)
+    .or(`company.ilike.%${q}%,position.ilike.%${q}%`)
+    .order('updated_at', { ascending: false });
+
+  if (!apps || apps.length === 0) {
+    await sendMessage(
+      chatId,
+      `🔍 <b>Hasil Pencarian</b>\n\nTidak ditemukan lamaran dengan kata kunci "<b>${q}</b>".`,
+      {
+        inline_keyboard: [
+          [{ text: '🔍 Cari Lagi', callback_data: 'loker:search' }],
+          [{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]
+        ]
+      }
+    );
+    return;
+  }
+
+  let msg = `🔍 <b>Hasil Pencarian untuk "${q}" (${apps.length})</b>\n\n`;
+  const inlineKeyboard: any[][] = [];
+
+  for (const app of apps) {
+    const platformName = (app.job_platforms as any)?.name ? ` [${(app.job_platforms as any).name}]` : '';
+    msg += `🏢 <b>${app.company}</b> — ${app.position}${platformName}\n`;
+    msg += `📍 Status: <b>${app.status}</b>\n\n`;
+
+    inlineKeyboard.push([
+      {
+        text: `✏️ Update ${app.company} - ${app.position}`,
+        callback_data: `loker:select_update:${app.id}`
+      }
+    ]);
+  }
+
+  inlineKeyboard.push([{ text: '🔍 Cari Lagi', callback_data: 'loker:search' }]);
+  inlineKeyboard.push([{ text: '↩️ Kembali ke Menu', callback_data: 'loker:menu' }]);
+
+  await sendMessage(chatId, msg.trim(), {
+    inline_keyboard: inlineKeyboard
+  });
+}
+
 export async function handleLokerConversationStep(chatId: string, text: string, session: any): Promise<void> {
   if (!supabase) return;
   const step = session.step;
   const draft = session.draft_data;
+
+  if (step === 'WAITING_SEARCH') {
+    await supabase.from('bot_user_sessions').delete().eq('chat_id', chatId);
+    await handleLokerSearch(chatId, text);
+    return;
+  }
 
   if (step === 'WAITING_COMPANY') {
     const newDraft = { ...draft, company: text };

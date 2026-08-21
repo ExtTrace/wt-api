@@ -3,4 +3,4 @@ export { handleLinkStart, handleLinkStep } from './link';
 export { handleList } from './list';
 export { handleSchedule } from './schedule';
 export { handleNew } from './new';
-export { sendLokerMenu, handleLokerCallbackQuery, handleLokerConversationStep } from './loker';
+export { sendLokerMenu, handleLokerCallbackQuery, handleLokerConversationStep, handleLokerSearch } from './loker';
