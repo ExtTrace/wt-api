@@ -20,6 +20,8 @@ export default function handleRequest(req: VercelRequest, res: VercelResponse) {
       return handleIOT(req, res, slug);
 
     case 'job':
+    case 'job-stats':
+    case 'job-platforms':
       return handleJob(req, res, slug);
 
     case 'portofolio':

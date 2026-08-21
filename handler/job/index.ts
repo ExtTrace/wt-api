@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import handleJobStats from './job-stats';
 import handleJobs from './jobs';
+import handleJobPlatforms from './job-platforms';
 
 export default function handleJob(
   req: VercelRequest,
@@ -12,6 +13,10 @@ export default function handleJob(
   switch (endpoint) {
     case 'job-stats':
       return handleJobStats(req, res);
+
+    case 'job-platforms':
+    case 'platforms':
+      return handleJobPlatforms(req, res);
 
     case 'jobs':
       return handleJobs(req, res);

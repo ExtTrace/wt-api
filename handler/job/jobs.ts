@@ -23,11 +23,16 @@ export default async function handleJobs(req: VercelRequest, res: VercelResponse
 
     let query = supabase
       .from('job_applications')
-      .select('id, company, position, status, created_at, updated_at', { count: 'exact' });
+      .select('id, company, position, status, platform_id, created_at, updated_at, job_platforms(id, name, code)', { count: 'exact' });
 
     const status = req.query.status;
     if (status && typeof status === 'string') {
       query = query.eq('status', status);
+    }
+
+    const platformId = req.query.platform_id || req.query.platform;
+    if (platformId && typeof platformId === 'string') {
+      query = query.eq('platform_id', platformId);
     }
 
     const search = req.query.search;
