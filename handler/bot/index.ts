@@ -18,7 +18,7 @@ export default function handleBot(
 
     default:
       return res.status(404).json({
-        message: 'Not found',
+        message: 'API endpoint not found',
       });
   }
 }

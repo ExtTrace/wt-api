@@ -23,7 +23,7 @@ export default function handleJob(
 
     default:
       return res.status(404).json({
-        message: 'Not found',
+        message: 'API endpoint not found',
       });
   }
 }

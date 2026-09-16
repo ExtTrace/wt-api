@@ -27,7 +27,7 @@ export default function handleRequest(req: VercelRequest, res: VercelResponse) {
 
     default:
       return res.status(404).json({
-        message: 'Not found',
+        message: 'API endpoint not found',
       });
   }
 }

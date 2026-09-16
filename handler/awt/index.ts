@@ -22,7 +22,7 @@ export default function handleAWT(
 
     default:
       return res.status(404).json({
-        message: 'Not found',
+        message: 'API endpoint not found',
       });
   }
 }
