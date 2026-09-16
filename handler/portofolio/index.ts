@@ -14,7 +14,7 @@ export default function handlePortofolio(
   const [, endpoint] = slug;
 
   switch (endpoint) {
-    case 'certificate':
+    case 'certificates':
       return handleCertificates(req, res);
 
     case 'education':
