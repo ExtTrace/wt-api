@@ -6,6 +6,7 @@ interface SkillRecord {
   item_id: string;
   category: string;
   skills: any[];
+  is_active: boolean;
 }
 
 export default async function handleSkills(
@@ -25,6 +26,7 @@ export default async function handleSkills(
       .from('portfolio_skills')
       .select('*')
       .eq('lang', lang)
+      .eq('is_active', true)
       .order('order_index', { ascending: true });
 
     if (error) throw error;

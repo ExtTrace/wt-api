@@ -10,6 +10,7 @@ interface EducationRecord {
   start_date: string;
   end_date: string;
   description: string;
+  is_active: boolean;
 }
 
 export default async function handleEducation(
@@ -29,6 +30,7 @@ export default async function handleEducation(
       .from('portfolio_education')
       .select('*')
       .eq('lang', lang)
+      .eq('is_active', true)
       .order('order_index', { ascending: true });
 
     if (error) throw error;

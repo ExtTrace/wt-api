@@ -9,6 +9,7 @@ interface CertificateRecord {
   issue_date: string;
   credential_id: string;
   credential_url: string;
+  is_active: boolean;
 }
 
 export default async function handleCertificates(
@@ -28,6 +29,7 @@ export default async function handleCertificates(
       .from('portfolio_certificates')
       .select('*')
       .eq('lang', lang)
+      .eq('is_active', true)
       .order('order_index', { ascending: true });
 
     if (error) throw error;

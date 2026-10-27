@@ -7,6 +7,7 @@ interface SocialRecord {
   url: string;
   label: string;
   icon_name: string;
+  is_active: boolean;
 }
 
 export default async function handleSocials(
@@ -26,6 +27,7 @@ export default async function handleSocials(
       .from('portfolio_socials')
       .select('*')
       .eq('lang', lang)
+      .eq('is_active', true)
       .order('order_index', { ascending: true });
 
     if (error) throw error;

@@ -16,6 +16,7 @@ interface ExperienceRecord {
   achievements: string[];
   tech_stack: string[];
   parent_id: string | null;
+  is_active: boolean;
 }
 
 export default async function handleExperience(
@@ -36,6 +37,7 @@ export default async function handleExperience(
       .from('portfolio_experiences')
       .select('*')
       .eq('lang', lang)
+      .eq('is_active', true)
       .order('order_index', { ascending });
 
     if (error) throw error;

@@ -18,6 +18,7 @@ interface ProjectRecord {
   tech_stack: string[];
   github_url: string;
   live_url: string;
+  is_active: boolean;
 }
 
 export default async function handleProjects(
@@ -38,6 +39,7 @@ export default async function handleProjects(
       .from('portfolio_projects')
       .select('*')
       .eq('lang', lang)
+      .eq('is_active', true)
       .order('order_index', { ascending });
 
     if (error) throw error;
